@@ -52,7 +52,22 @@
 
   let cur_day = 1;
   let cur_name = null;
+  let w = "600px";
+  let h = "330px";
 
+  window.onresize = function () {
+    checkSize();
+  };
+  function checkSize() {
+    if (window.innerWidth < window.innerHeight) {
+      w = "330px";
+      h = "600px";
+    } else {
+      w = "600px";
+      h = "330px";
+    }
+  }
+  checkSize();
   // 创建容器元素并设置样式和位置
   const container = document.createElement('div');
   container.style.border = "1px solid #ccc"; //边框样式
@@ -61,8 +76,8 @@
   container.style.zIndex = 10000;
   container.style.top = "50px"; //距离顶部位置
   container.style.left = "50px"; //距离左侧位置
-  container.style.width = "600px"; //容器宽度
-  container.style.height = "330px"; //容器高度
+  container.style.width = w; //容器宽度
+  container.style.height = h; //容器高度
   container.style.cursor = "move";
   container.addEventListener("mousedown", function (e) {
     let disX = e.clientX - container.offsetLeft;
@@ -126,8 +141,8 @@
     if (wrapper.style.display === 'none') {
       wrapper.style.display = ctx.style.display = 'block';
       btn_close.value = '📈隐藏';
-      container.style.width = "600px";
-      container.style.height = "330px";
+      container.style.width = w;
+      container.style.height = h;
     } else {
       wrapper.style.display = ctx.style.display = 'none';
       container.style.width = "63px";
@@ -152,17 +167,18 @@
       }]
     },
     options: {
+      maintainAspectRatio: false,
       scales: {
         y: {
-          beginAtZero: true
+          beginAtZero: false
         }
       }
     }
   });
 
   function requestMarket(name, day = 1) {
-    if(initData_itemDetailMap && initData_itemDetailMap[name]){
-        name = initData_itemDetailMap[name].name;
+    if (initData_itemDetailMap && initData_itemDetailMap[name]) {
+      name = initData_itemDetailMap[name].name;
     }
 
     cur_name = name;
