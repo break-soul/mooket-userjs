@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      2025-03-19.2
+// @version      2025-03-20
 // @description  银河奶牛历史价格 show history market data for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -54,6 +54,9 @@
   let cur_name = null;
   let w = "600px";
   let h = "330px";
+  let configStr = localStorage.getItem("mooket_config");
+  let config = configStr ? JSON.parse(configStr) : {"dayIndex":0,"visible":true,"filter":{"bid":true,"ask":true,"mean":true}};
+  cur_day = config.day;//读取设置
 
   window.onresize = function () {
     checkSize();
@@ -106,6 +109,8 @@
 
   const days = [1, 3, 7, 30, 180]
   const dayTitle = ['1天', '3天', '7天', '30天', '半年']
+  cur_day = days[config.dayIndex];
+
   for (let i = 0; i < 5; i++) {
     let btn = document.createElement('input');
     btn.id = 'chartType' + i;
@@ -114,8 +119,13 @@
     btn.value = days[i];
     btn.style.cursor = 'pointer';
     btn.style.verticalAlign = "middle";
-    btn.checked = i == 0;
-    btn.onclick = function () { cur_day = this.value; requestMarket(cur_name, cur_day); };
+    btn.checked = i == config.dayIndex;
+    btn.onclick = function () { 
+      cur_day = this.value; 
+      config.dayIndex = i;
+      if(cur_name)requestMarket(cur_name, cur_day); 
+      save_config();
+    }
 
     let label = document.createElement('label');
     label.innerText = dayTitle[i];
@@ -138,36 +148,45 @@
   btn_close.style.left = '1px';
   btn_close.style.cursor = 'pointer';
   btn_close.style.position = 'absolute';
-  btn_close.onclick = function () {
-    if (wrapper.style.display === 'none') {
+  btn_close.onclick = toggle;
+  function toggle() {
+    setVisible(wrapper.style.display === 'none');
+  };
+  function setVisible(visible){
+    if (visible) {
       wrapper.style.display = ctx.style.display = 'block';
       btn_close.value = '📈隐藏';
       container.style.width = w;
       container.style.height = h;
+      config.visible = true;
+      save_config();
     } else {
       wrapper.style.display = ctx.style.display = 'none';
       container.style.width = "63px";
       container.style.height = "25px";
       btn_close.value = '📈显示';
+      config.visible = false;
+      save_config();
     }
-  };
-
+  }
+  
   container.appendChild(btn_close);
 
 
   let chart = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: ['一月', '二月', '三月'],
+      labels: [],
       datasets: [{
-        label: '销量',
-        data: [12, 19, 3],
+        label: '市场',
+        data: [],
         backgroundColor: 'rgba(255,99,132,0.2)',
         borderColor: 'rgba(255,99,132,1)',
         borderWidth: 1
       }]
     },
     options: {
+      onClick:save_config,
       maintainAspectRatio: false,
       scales: {
         y: {
@@ -216,6 +235,8 @@
 
   //data={'bid':[{time:1,price:1}],'ask':[{time:1,price:1}]}
   function updateChart(data, day) {
+    data.bid = data.bid.filter(o=>o.price>0);
+    data.ask = data.ask.filter(o=>o.price>0);
     //timestamp转日期时间
     //根据day输出不同的时间表示，<3天显示时分，<=7天显示日时，<=30天显示月日，>30天显示年月
 
@@ -249,8 +270,22 @@
         borderWidth: 1
       }
     ];
+    chart.setDatasetVisibility(0, config.filter.ask);
+    chart.setDatasetVisibility(1, config.filter.bid);
+    chart.setDatasetVisibility(2, config.filter.mean);
+
     chart.update()
   }
-  requestMarket('Apple', 1);
+  function save_config(){
+
+    if(chart && chart.datasets && chart.datasets.length==3){
+      config.filter.ask=chart.getDatasetMeta(0).visible;
+      config.filter.bid=chart.getDatasetMeta(1).visible;
+      config.filter.mean=chart.getDatasetMeta(2).visible;
+    }
+    localStorage.setItem("mooket_config", JSON.stringify(config));
+  }
+  //requestMarket('Apple', 1);
+  setVisible(config.visible);
 
 })();
