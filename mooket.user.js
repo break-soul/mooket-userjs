@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      2025-03-19
+// @version      2025-03-19.2
 // @description  银河奶牛历史价格 show history market data for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -101,6 +101,7 @@
   // 创建按钮组并设置样式和位置
   let wrapper = document.createElement('div');
   wrapper.style.display = 'inline-block';
+  wrapper.style.backgroundColor="white"
   container.appendChild(wrapper);
 
   const days = [1, 3, 7, 30, 180]
