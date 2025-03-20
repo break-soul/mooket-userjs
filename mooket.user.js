@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      2025-03-20.1
+// @version      2025-03-20.3
 // @description  银河奶牛历史价格 show history market data for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -43,7 +43,7 @@
   function handleMessage(message) {
     let obj = JSON.parse(message);
     if (obj && obj.type === "market_item_order_books_updated") {
-      requestMarket(obj.marketItemOrderBooks.itemHrid);
+      requestMarket(obj.marketItemOrderBooks.itemHrid,cur_day);
     }
     return message;
   }
@@ -235,8 +235,13 @@
 
   //data={'bid':[{time:1,price:1}],'ask':[{time:1,price:1}]}
   function updateChart(data, day) {
-    data.bid = data.bid.filter(o=>o.price>0);
-    data.ask = data.ask.filter(o=>o.price>0);
+    //过滤异常元素
+    for(let i=data.bid.length-1;i>=0;i--){
+      if(data.bid[i].price<0||data.ask[i].price<0){
+        data.bid.splice(i,1);
+        data.ask.splice(i,1);
+      }
+    }
     //timestamp转日期时间
     //根据day输出不同的时间表示，<3天显示时分，<=7天显示日时，<=30天显示月日，>30天显示年月
 
@@ -278,7 +283,7 @@
   }
   function save_config(){
 
-    if(chart && chart.datasets && chart.datasets.length==3){
+    if(chart && chart.data && chart.data.datasets && chart.data.datasets.length==3){
       config.filter.ask=chart.getDatasetMeta(0).visible;
       config.filter.bid=chart.getDatasetMeta(1).visible;
       config.filter.mean=chart.getDatasetMeta(2).visible;
