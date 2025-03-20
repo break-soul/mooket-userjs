@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      2025-03-20
+// @version      2025-03-20.1
 // @description  银河奶牛历史价格 show history market data for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -215,7 +215,7 @@
         time: time
       })
     }).then(res => {
-      res.json().then(data => updateChart(data, day));
+      res.json().then(data => updateChart(data, cur_day));
     })
   }
   function formatTime(timestamp, day) {
