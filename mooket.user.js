@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      2025-03-20.3
+// @version      2025-03-26
 // @description  银河奶牛历史价格 show history market data for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -43,7 +43,7 @@
   function handleMessage(message) {
     let obj = JSON.parse(message);
     if (obj && obj.type === "market_item_order_books_updated") {
-      requestMarket(obj.marketItemOrderBooks.itemHrid,cur_day);
+      requestMarket(obj.marketItemOrderBooks.itemHrid, cur_day);
     }
     return message;
   }
@@ -52,10 +52,10 @@
 
   let cur_day = 1;
   let cur_name = null;
-  let w = "600px";
-  let h = "330px";
+  let w = "500px";
+  let h = "280px";
   let configStr = localStorage.getItem("mooket_config");
-  let config = configStr ? JSON.parse(configStr) : {"dayIndex":0,"visible":true,"filter":{"bid":true,"ask":true,"mean":true}};
+  let config = configStr ? JSON.parse(configStr) : { "dayIndex": 0, "visible": true, "filter": { "bid": true, "ask": true, "mean": true } };
   cur_day = config.day;//读取设置
 
   window.onresize = function () {
@@ -63,11 +63,11 @@
   };
   function checkSize() {
     if (window.innerWidth < window.innerHeight) {
-      w = "330px";
-      h = "600px";
+      w = "280px";
+      h = "500px";
     } else {
-      w = "600px";
-      h = "330px";
+      w = "500px";
+      h = "280px";
     }
   }
   checkSize();
@@ -78,11 +78,22 @@
   container.style.position = "fixed";
   container.style.zIndex = 10000;
   container.style.top = "50px"; //距离顶部位置
-  container.style.left = "50px"; //距离左侧位置
+  container.style.left = "130px"; //距离左侧位置
   container.style.width = w; //容器宽度
   container.style.height = h; //容器高度
+  container.style.resize = "both";
+  container.style.overflow = "auto";
+  container.style.display = "flex";
+  container.style.flexDirection = "column";
+  container.style.flex = "1";
+  container.style.minHeight = "33px";
+  container.style.minWidth = "65px";
   container.style.cursor = "move";
   container.addEventListener("mousedown", function (e) {
+    const rect = container.getBoundingClientRect();
+    if (e.clientX > rect.right - 10 || e.clientY > rect.bottom - 10) {
+      return;
+    }
     let disX = e.clientX - container.offsetLeft;
     let disY = e.clientY - container.offsetTop;
     document.onmousemove = function (e) {
@@ -103,8 +114,11 @@
 
   // 创建按钮组并设置样式和位置
   let wrapper = document.createElement('div');
-  wrapper.style.display = 'inline-block';
-  wrapper.style.backgroundColor="white"
+  wrapper.style.position = 'absolute';
+  wrapper.style.bottom = '40px';
+  wrapper.style.right = '15px';
+  wrapper.style.backgroundColor = '#fff';
+  wrapper.style.flexShrink = 0;
   container.appendChild(wrapper);
 
   const days = [1, 3, 7, 30, 180]
@@ -120,10 +134,10 @@
     btn.style.cursor = 'pointer';
     btn.style.verticalAlign = "middle";
     btn.checked = i == config.dayIndex;
-    btn.onclick = function () { 
-      cur_day = this.value; 
+    btn.onclick = function () {
+      cur_day = this.value;
       config.dayIndex = i;
-      if(cur_name)requestMarket(cur_name, cur_day); 
+      if (cur_name) requestMarket(cur_name, cur_day);
       save_config();
     }
 
@@ -144,34 +158,35 @@
   btn_close.style.textAlign = 'center';
   btn_close.style.display = 'inline';
   btn_close.style.margin = 0;
-  btn_close.style.top = '1px';
-  btn_close.style.left = '1px';
+  btn_close.style.top = '2px';
+  btn_close.style.left = '2px';
   btn_close.style.cursor = 'pointer';
   btn_close.style.position = 'absolute';
+  let lastWidth;
+  let lastHeight;
   btn_close.onclick = toggle;
+  
   function toggle() {
-    setVisible(wrapper.style.display === 'none');
-  };
-  function setVisible(visible){
-    if (visible) {
+    if (wrapper.style.display === 'none') {
       wrapper.style.display = ctx.style.display = 'block';
       btn_close.value = '📈隐藏';
-      container.style.width = w;
-      container.style.height = h;
+      container.style.width = lastWidth;
+      container.style.height = lastHeight;
       config.visible = true;
       save_config();
     } else {
+      lastWidth = container.style.width;
+      lastHeight = container.style.height;
       wrapper.style.display = ctx.style.display = 'none';
-      container.style.width = "63px";
-      container.style.height = "25px";
+      container.style.width = "auto";
+      container.style.height = "auto";
       btn_close.value = '📈显示';
       config.visible = false;
       save_config();
     }
-  }
-  
-  container.appendChild(btn_close);
+  };
 
+  container.appendChild(btn_close);
 
   let chart = new Chart(ctx, {
     type: 'line',
@@ -186,7 +201,8 @@
       }]
     },
     options: {
-      onClick:save_config,
+      onClick: save_config,
+      responsive: true,
       maintainAspectRatio: false,
       scales: {
         y: {
@@ -224,22 +240,22 @@
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
     else if (day <= 3) {
-      return date.toLocaleDateString([], { day: 'numeric', hour: '2-digit' });
+      return date.toLocaleTimeString([], { hour: '2-digit' });
     } else if (day <= 7) {
-      return date.toLocaleDateString([], { day: 'numeric', hour: '2-digit' });
+      return date.toLocaleDateString([], { day: 'numeric' });
     } else if (day <= 30) {
       return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
     } else
-      return date.toLocaleDateString([], { year: 'numeric', month: 'short' });
+      return date.toLocaleDateString([], { year: '2-digit', month: 'short' });
   }
 
   //data={'bid':[{time:1,price:1}],'ask':[{time:1,price:1}]}
   function updateChart(data, day) {
     //过滤异常元素
-    for(let i=data.bid.length-1;i>=0;i--){
-      if(data.bid[i].price<0||data.ask[i].price<0){
-        data.bid.splice(i,1);
-        data.ask.splice(i,1);
+    for (let i = data.bid.length - 1; i >= 0; i--) {
+      if (data.bid[i].price < 0 || data.ask[i].price < 0) {
+        data.bid.splice(i, 1);
+        data.ask.splice(i, 1);
       }
     }
     //timestamp转日期时间
@@ -281,16 +297,16 @@
 
     chart.update()
   }
-  function save_config(){
+  function save_config() {
 
-    if(chart && chart.data && chart.data.datasets && chart.data.datasets.length==3){
-      config.filter.ask=chart.getDatasetMeta(0).visible;
-      config.filter.bid=chart.getDatasetMeta(1).visible;
-      config.filter.mean=chart.getDatasetMeta(2).visible;
+    if (chart && chart.data && chart.data.datasets && chart.data.datasets.length == 3) {
+      config.filter.ask = chart.getDatasetMeta(0).visible;
+      config.filter.bid = chart.getDatasetMeta(1).visible;
+      config.filter.mean = chart.getDatasetMeta(2).visible;
     }
     localStorage.setItem("mooket_config", JSON.stringify(config));
   }
   //requestMarket('Apple', 1);
-  setVisible(config.visible);
+  toggle();
 
 })();
