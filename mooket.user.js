@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      2025-03-26.1
+// @version      2025-03-26.2
 // @description  银河奶牛历史价格 show history market data for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -43,7 +43,9 @@
   function handleMessage(message) {
     let obj = JSON.parse(message);
     if (obj && obj.type === "market_item_order_books_updated") {
-      requestMarket(obj.marketItemOrderBooks.itemHrid, cur_day);
+      requestItemPrice(obj.marketItemOrderBooks.itemHrid, cur_day);
+    }else if(obj&&obj.type==="market_listings_updated"){//挂单变动
+      
     }
     return message;
   }
@@ -115,8 +117,8 @@
   // 创建按钮组并设置样式和位置
   let wrapper = document.createElement('div');
   wrapper.style.position = 'absolute';
-  wrapper.style.bottom = '40px';
-  wrapper.style.right = '15px';
+  wrapper.style.bottom = '35px';
+  wrapper.style.right = '0px';
   wrapper.style.backgroundColor = '#fff';
   wrapper.style.flexShrink = 0;
   container.appendChild(wrapper);
@@ -137,7 +139,7 @@
     btn.onclick = function () {
       cur_day = this.value;
       config.dayIndex = i;
-      if (cur_name) requestMarket(cur_name, cur_day);
+      if (cur_name) requestItemPrice(cur_name, cur_day);
       save_config();
     }
 
@@ -187,7 +189,6 @@
   };
 
   container.appendChild(btn_close);
-
   let chart = new Chart(ctx, {
     type: 'line',
     data: {
@@ -208,11 +209,13 @@
         y: {
           beginAtZero: false
         }
-      }
+      },
+      pointRadius: 0,
+      pointHitRadius: 20,
     }
   });
 
-  function requestMarket(name, day = 1) {
+  function requestItemPrice(name, day = 1) {
     if (initData_itemDetailMap && initData_itemDetailMap[name]) {
       name = initData_itemDetailMap[name].name;
     }
@@ -234,20 +237,58 @@
       res.json().then(data => updateChart(data, cur_day));
     })
   }
-  function formatTime(timestamp, day) {
-    let date = new Date(timestamp * 1000);
-    if (day <= 1) {
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  function uploadItemPrice(marketItemOrderBooks, day = 1) {
+    let name = marketItemOrderBooks.itemHrid;
+    if (initData_itemDetailMap && initData_itemDetailMap[name]) {
+      name = initData_itemDetailMap[name].name;
     }
-    else if (day <= 3) {
-      return date.toLocaleTimeString([], { hour: '2-digit' });
-    } else if (day <= 7) {
-      return date.toLocaleDateString([], { day: 'numeric' });
-    } else if (day <= 30) {
-      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-    } else
-      return date.toLocaleDateString([], { year: '2-digit', month: 'short' });
+
+    cur_name = name;
+    cur_day = day;
+
+    let time = day * 3600 * 24;
+    fetch("https://mooket.qi-e.top/market", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: name,
+        time: time
+      })
+    }).then(res => {
+      res.json().then(data => updateChart(data, cur_day));
+    })
   }
+  function formatTime(timestamp, range) {
+    const date = new Date(timestamp*1000);
+    const pad = n => n.toString().padStart(2, '0');
+
+    // 获取各时间组件
+    const hours = pad(date.getHours());
+    const minutes = pad(date.getMinutes());
+    const day = pad(date.getDate());
+    const month = pad(date.getMonth() + 1);
+    const shortYear = date.getFullYear().toString().slice(-2);
+
+    // 根据时间范围选择格式
+    switch (parseInt(range)) {
+        case 1: // 1天：只显示时间
+            return `${hours}:${minutes}`;
+
+        case 3: // 3天：日+时段
+            return `${hours}:${minutes}`;
+
+        case 7: // 7天：月/日 + 时段
+            return `${day}.${hours}`;
+
+        case 30: // 30天：月/日
+            return `${month}/${day}`;
+
+        default: // 180天：年/月
+            return `${shortYear}/${month}`;
+    }
+}
 
   //data={'bid':[{time:1,price:1}],'ask':[{time:1,price:1}]}
   function updateChart(data, day) {
@@ -265,31 +306,43 @@
 
     chart.data.labels = labels;
 
+    let sma=[];
+    let sma_size=6;
+    for(let i=0;i<data.bid.length;i++){
+      if(i<sma_size) sma.push((data.bid[i].price+data.ask[i].price)/2);
+      else{
+        let sum=0;
+        for(let j=0;j<sma_size;j++){
+          sum+=((data.bid[i-j].price+data.ask[i-j].price)/2);
+        }
+        sma.push(sum/sma_size);
+      }
+    }
+
     chart.data.datasets = [
       {
         label: '买入',
         data: data.bid.map(x => x.price),
-        backgroundColor: '#ff3300',
-        borderColor: '#990000',
-        borderWidth: 1
-      },
-      {
+        borderColor: '#ff3300',
+        backgroundColor:'#ff3300',
+
+        borderWidth: 2
+    },
+    {
         label: '卖出',
         data: data.ask.map(x => x.price),
-        backgroundColor: '#00cc00',
-        borderColor: '#006600',
-        borderWidth: 1
-      },
-      {
-        label: '均价',
-        data: data.bid.map(({ price: bidPrice }, index) => {
-          const { price: askPrice } = data.ask[index];
-          return (bidPrice + askPrice) / 2;
-        }),
-        backgroundColor: '#ff9900',
-        borderColor: '#996600',
-        borderWidth: 1
-      }
+        borderColor: '#00cc00',
+        backgroundColor:'#00cc00',
+        borderWidth: 2
+    },
+    {
+        label: '均线',
+        data: sma,
+        borderColor: '#ff9900',
+        borderWidth: 4,
+        fill: true,
+        tension: 0.5
+    }
     ];
     chart.setDatasetVisibility(0, config.filter.ask);
     chart.setDatasetVisibility(1, config.filter.bid);
