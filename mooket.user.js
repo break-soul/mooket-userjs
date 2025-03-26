@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      2025-03-26.3
+// @version      2025-03-26.4
 // @description  银河奶牛历史价格 show history market data for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -788,8 +788,8 @@
   hookWS();
 
   let cur_day = 1;
-  let cur_name = null;
-  let cur_name_cn = null;
+  let curHridName = null;
+  let curItemNameCN = null;
   let w = "500px";
   let h = "280px";
   let configStr = localStorage.getItem("mooket_config");
@@ -877,7 +877,7 @@
     btn.onclick = function () {
       cur_day = this.value;
       config.dayIndex = i;
-      if (cur_name) requestItemPrice(cur_name, cur_day);
+      if (curHridName) requestItemPrice(curHridName, cur_day);
       save_config();
     }
 
@@ -965,14 +965,11 @@
   });
 
   function requestItemPrice(itemHridName, day = 1) {
-    cur_name_cn = itemNamesCN[itemHridName];
-
-    if (initData_itemDetailMap && initData_itemDetailMap[itemHridName]) {
-      itemHridName = initData_itemDetailMap[itemHridName].name;
-    }
-
-    cur_name = itemHridName;
+    curHridName = itemHridName;
     cur_day = day;
+    let itemNameEN = initData_itemDetailMap[itemHridName].name;
+    curItemNameCN = itemNamesCN[itemHridName];
+    
 
     let time = day * 3600 * 24;
     fetch("https://mooket.qi-e.top/market", {
@@ -981,7 +978,7 @@
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        name: itemHridName,
+        name: itemNameEN,
         time: time
       })
     }).then(res => {
@@ -989,27 +986,7 @@
     })
   }
   function uploadItemPrice(marketItemOrderBooks, day = 1) {
-    let name = marketItemOrderBooks.itemHrid;
-    if (initData_itemDetailMap && initData_itemDetailMap[name]) {
-      name = initData_itemDetailMap[name].name;
-    }
-
-    cur_name = name;
-    cur_day = day;
-
-    let time = day * 3600 * 24;
-    fetch("https://mooket.qi-e.top/market", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name: name,
-        time: time
-      })
-    }).then(res => {
-      res.json().then(data => updateChart(data, cur_day));
-    })
+    
   }
   function formatTime(timestamp, range) {
     const date = new Date(timestamp * 1000);
@@ -1077,7 +1054,7 @@
         sma.push(sum / sma_size);
       }
     }
-    chart.options.plugins.title.text = cur_name_cn
+    chart.options.plugins.title.text = curItemNameCN
     chart.data.datasets = [
       {
         label: '买入',
