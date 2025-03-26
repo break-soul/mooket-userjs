@@ -117,9 +117,11 @@
   // 创建按钮组并设置样式和位置
   let wrapper = document.createElement('div');
   wrapper.style.position = 'absolute';
-  wrapper.style.bottom = '35px';
+  wrapper.style.bottom = '42px';
   wrapper.style.right = '0px';
-  wrapper.style.backgroundColor = '#fff';
+  wrapper.style.fontSize = '14px';
+
+  //wrapper.style.backgroundColor = '#fff';
   wrapper.style.flexShrink = 0;
   container.appendChild(wrapper);
 
@@ -212,6 +214,7 @@
       },
       pointRadius: 0,
       pointHitRadius: 20,
+      tension:0.5
     }
   });
 
@@ -325,23 +328,22 @@
         data: data.bid.map(x => x.price),
         borderColor: '#ff3300',
         backgroundColor:'#ff3300',
-
-        borderWidth: 2
+        borderWidth: 1.5
     },
     {
         label: '卖出',
         data: data.ask.map(x => x.price),
         borderColor: '#00cc00',
         backgroundColor:'#00cc00',
-        borderWidth: 2
+        borderWidth: 1.5
     },
     {
         label: '均线',
         data: sma,
         borderColor: '#ff9900',
-        borderWidth: 4,
-        fill: true,
-        tension: 0.5
+        borderWidth: 3,
+        fill: true
+        
     }
     ];
     chart.setDatasetVisibility(0, config.filter.ask);
