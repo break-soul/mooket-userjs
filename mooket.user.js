@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      2025-03-26.4
+// @version      2025-03-27
 // @description  银河奶牛历史价格 show history market data for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -769,7 +769,9 @@
       }
       const message = oriGet.call(this);
       Object.defineProperty(this, "data", { value: message }); // Anti-loop
-      return handleMessage(message);
+      try{handleMessage(message);}
+      catch(e){console.log("handleMessage error:", e);}
+      return message;
     }
   }
   function handleMessage(message) {
@@ -1044,15 +1046,11 @@
 
     let sma = [];
     let sma_size = 6;
+    let sma_window=[];
     for (let i = 0; i < data.bid.length; i++) {
-      if (i < sma_size) sma.push((data.bid[i].price + data.ask[i].price) / 2);
-      else {
-        let sum = 0;
-        for (let j = 0; j < sma_size; j++) {
-          sum += ((data.bid[i - j].price + data.ask[i - j].price) / 2);
-        }
-        sma.push(sum / sma_size);
-      }
+        sma_window.push((data.bid[i].price + data.ask[i].price) / 2);
+        if (sma_window.length > sma_size) sma_window.shift();
+        sma.push(sma_window.reduce((a, b) => a + b, 0) / sma_window.length);
     }
     chart.options.plugins.title.text = curItemNameCN
     chart.data.datasets = [
