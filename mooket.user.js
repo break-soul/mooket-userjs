@@ -747,7 +747,7 @@
     '/items/shard_of_protection': '保护碎片',
     '/items/mirror_of_protection': '保护之镜'
   };
-  
+
   let initData_itemDetailMap = null;
   if (localStorage.getItem("initClientData")) {
     const obj = JSON.parse(localStorage.getItem("initClientData"));
@@ -769,8 +769,8 @@
       }
       const message = oriGet.call(this);
       Object.defineProperty(this, "data", { value: message }); // Anti-loop
-      try{handleMessage(message);}
-      catch(e){console.log("handleMessage error:", e);}
+      try { handleMessage(message); }
+      catch (e) { console.log("handleMessage error:", e); }
       return message;
     }
   }
@@ -852,7 +852,7 @@
   ctx.id = "myChart";
   container.appendChild(ctx);
 
-  // 创建按钮组并设置样式和位置
+  // 创建下拉菜单并设置样式和位置
   let wrapper = document.createElement('div');
   wrapper.style.position = 'absolute';
   wrapper.style.top = '5px';
@@ -863,36 +863,29 @@
   wrapper.style.flexShrink = 0;
   container.appendChild(wrapper);
 
-  const days = [1, 3, 7, 30, 180]
-  const dayTitle = ['1天', '3天', '7天', '30天', '半年']
+  const days = [1, 3, 7, 14, 30, 180, 360];
+  const dayTitle = ['1天', '3天', '1周', '2周', '1月', '半年', '一年'];
   cur_day = days[config.dayIndex];
 
-  for (let i = 0; i < 5; i++) {
-    let btn = document.createElement('input');
-    btn.id = 'chartType' + i;
-    btn.type = 'radio';
-    btn.name = 'chartType';
-    btn.value = days[i];
-    btn.style.cursor = 'pointer';
-    btn.style.verticalAlign = "middle";
-    btn.checked = i == config.dayIndex;
-    btn.onclick = function () {
-      cur_day = this.value;
-      config.dayIndex = i;
-      if (curHridName) requestItemPrice(curHridName, cur_day);
-      save_config();
-    }
+  let select = document.createElement('select');
+  select.style.cursor = 'pointer';
+  select.style.verticalAlign = 'middle';
+  select.onchange = function () {
+    cur_day = this.value;
+    config.dayIndex = days.indexOf(parseInt(this.value));
+    if (curHridName) requestItemPrice(curHridName, cur_day);
+    save_config();
+  };
 
-    let label = document.createElement('label');
-    label.innerText = dayTitle[i];
-    label.style.display = 'inline-block';
-    label.style.verticalAlign = 'middle';
-    label.style.textAlign = 'center';
-    label.htmlFor = btn.id;
-    label.style.margin = '1px';
-    wrapper.appendChild(btn);
-    wrapper.appendChild(label);
+  for (let i = 0; i < days.length; i++) {
+    let option = document.createElement('option');
+    option.value = days[i];
+    option.text = dayTitle[i];
+    if (i === config.dayIndex) option.selected = true;
+    select.appendChild(option);
   }
+
+  wrapper.appendChild(select);
   //添加一个btn隐藏canvas和wrapper
   let btn_close = document.createElement('input');
   btn_close.type = 'button';
@@ -947,7 +940,6 @@
       maintainAspectRatio: false,
       pointRadius: 0,
       pointHitRadius: 20,
-      tension: 0.5,
       scales: {
         y: {
           beginAtZero: false,
@@ -957,12 +949,12 @@
           }
         }
       },
-      plugins:{
-        title:{
-            display: true,
-            text: "",
+      plugins: {
+        title: {
+          display: true,
+          text: "",
         }
-    }
+      }
     }
   });
 
@@ -971,7 +963,7 @@
     cur_day = day;
     let itemNameEN = initData_itemDetailMap[itemHridName].name;
     curItemNameCN = itemNamesCN[itemHridName];
-    
+
 
     let time = day * 3600 * 24;
     fetch("https://mooket.qi-e.top/market", {
@@ -988,7 +980,7 @@
     })
   }
   function uploadItemPrice(marketItemOrderBooks, day = 1) {
-    
+
   }
   function formatTime(timestamp, range) {
     const date = new Date(timestamp * 1000);
@@ -1046,11 +1038,11 @@
 
     let sma = [];
     let sma_size = 6;
-    let sma_window=[];
+    let sma_window = [];
     for (let i = 0; i < data.bid.length; i++) {
-        sma_window.push((data.bid[i].price + data.ask[i].price) / 2);
-        if (sma_window.length > sma_size) sma_window.shift();
-        sma.push(sma_window.reduce((a, b) => a + b, 0) / sma_window.length);
+      sma_window.push((data.bid[i].price + data.ask[i].price) / 2);
+      if (sma_window.length > sma_size) sma_window.shift();
+      sma.push(sma_window.reduce((a, b) => a + b, 0) / sma_window.length);
     }
     chart.options.plugins.title.text = curItemNameCN
     chart.data.datasets = [
@@ -1073,6 +1065,7 @@
         data: sma,
         borderColor: '#ff9900',
         borderWidth: 3,
+        tension: 0.5,
         fill: true
       }
     ];
