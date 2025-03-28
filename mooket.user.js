@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      2025-03-28
+// @version      2025-03-28.36581
 // @description  银河奶牛历史价格 show history market data for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -1085,5 +1085,4 @@
     localStorage.setItem("mooket_config", JSON.stringify(config));
   }
   toggle();
-
 })();
