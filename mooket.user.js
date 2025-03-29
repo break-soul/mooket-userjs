@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      2025-03-29.45292
+// @version      2025-03-29.50397
 // @description  银河奶牛历史价格 show history market data for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -911,6 +911,9 @@
   price_info.style.left = '65px';
   price_info.style.fontSize = '14px';
   price_info.title = "我的最近买/卖价格"
+  price_info.style.width = "max-content";
+  price_info.style.whiteSpace = "nowrap";
+
   let buy_price = document.createElement('span');
   let sell_price = document.createElement('span');
   price_info.appendChild(buy_price);
@@ -1069,14 +1072,15 @@
     //根据day输出不同的时间表示，<3天显示时分，<=7天显示日时，<=30天显示月日，>30天显示年月
 
     //显示历史价格
-    if(trade_history[curHridName]){
-      let buy = trade_history[curHridName].buy||"无";
-      let sell = trade_history[curHridName].sell||"无";
+    let enhancementLevel = document.querySelector(".MarketplacePanel_infoContainer__2mCnh .Item_enhancementLevel__19g-e")?.textContent.replace("+","") ||"0";
+    let tradeName = curHridName+"_"+parseInt(enhancementLevel);
+    if(trade_history[tradeName]){
+      let buy = trade_history[tradeName].buy||"无";
+      let sell = trade_history[tradeName].sell||"无";
       price_info.style.display = "block";
-      price_info.innerHTML = `<span style="color:red"> ${showNumber(buy)}</span>/<span style="color:green">${showNumber(sell)}</span>`;
-      setTimeout(()=>{
-        container.style.minWidth = price_info.clientWidth+70+"px";
-      },100);
+      let levelStr = enhancementLevel>0? "(+"+enhancementLevel+")":"";
+      price_info.innerHTML = `<span style="color:red">${showNumber(buy)}</span>/<span style="color:green">${showNumber(sell)}</span>${levelStr}`;
+      container.style.minWidth = price_info.clientWidth+70+"px";
       
     }else{
       price_info.style.display = "none";
