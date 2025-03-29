@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      2025-03-28.36581
+// @version      2025-03-29.45292
 // @description  银河奶牛历史价格 show history market data for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -747,6 +747,11 @@
     '/items/shard_of_protection': '保护碎片',
     '/items/mirror_of_protection': '保护之镜'
   };
+  let trade_history = {};
+  if(localStorage.getItem("mooket_trade_history")) {
+    trade_history = JSON.parse(localStorage.getItem("mooket_trade_history"));
+  }
+
 
   let initData_itemDetailMap = null;
   if (localStorage.getItem("initClientData")) {
@@ -782,6 +787,18 @@
     else if (obj && obj.type === "market_item_order_books_updated") {
       requestItemPrice(obj.marketItemOrderBooks.itemHrid, cur_day);
     } else if (obj && obj.type === "market_listings_updated") {//挂单变动
+      obj.endMarketListings.forEach(order => {
+        let key = order.itemHrid + "_" + order.enhancementLevel;
+        
+        let tradeItem = trade_history[key]||{}
+        if(order.isSell){
+          tradeItem.sell = order.price;
+        }else{
+          tradeItem.buy = order.price;
+        }
+        trade_history[key] = tradeItem;
+      });
+      localStorage.setItem("mooket_trade_history", JSON.stringify(trade_history));//保存挂单数据
 
     }
     return message;
@@ -886,6 +903,23 @@
   }
 
   wrapper.appendChild(select);
+
+  //一个固定的文本显示买入卖出历史价格
+  let price_info = document.createElement('div');
+  price_info.style.position = 'absolute';
+  price_info.style.top = '5px';
+  price_info.style.left = '65px';
+  price_info.style.fontSize = '14px';
+  price_info.title = "我的最近买/卖价格"
+  let buy_price = document.createElement('span');
+  let sell_price = document.createElement('span');
+  price_info.appendChild(buy_price);
+  price_info.appendChild(sell_price);
+  buy_price.style.color = 'red';
+  sell_price.style.color = 'green';
+
+  container.appendChild(price_info);
+
   //添加一个btn隐藏canvas和wrapper
   let btn_close = document.createElement('input');
   btn_close.type = 'button';
@@ -1013,6 +1047,8 @@
   }
 
   function showNumber(num) {
+    //判断是否是数字，如果不是则返回原值
+    if (isNaN(num)) return num;
     const absNum = Math.abs(num);
 
     return absNum >= 1e10 ? `${Math.floor(num / 1e9)}B` :
@@ -1031,6 +1067,23 @@
     }
     //timestamp转日期时间
     //根据day输出不同的时间表示，<3天显示时分，<=7天显示日时，<=30天显示月日，>30天显示年月
+
+    //显示历史价格
+    if(trade_history[curHridName]){
+      let buy = trade_history[curHridName].buy||"无";
+      let sell = trade_history[curHridName].sell||"无";
+      price_info.style.display = "block";
+      price_info.innerHTML = `<span style="color:red"> ${showNumber(buy)}</span>/<span style="color:green">${showNumber(sell)}</span>`;
+      setTimeout(()=>{
+        container.style.minWidth = price_info.clientWidth+70+"px";
+      },100);
+      
+    }else{
+      price_info.style.display = "none";
+      container.style.width = "auto";
+      container.style.height = "auto";
+      container.style.minWidth = "65px";
+    }
 
     let labels = data.bid.map(x => formatTime(x.time, day));
 
