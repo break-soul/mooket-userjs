@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      2025-03-29.50397
+// @version      2025-03-29.52014
 // @description  银河奶牛历史价格 show history market data for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -788,6 +788,7 @@
       requestItemPrice(obj.marketItemOrderBooks.itemHrid, cur_day);
     } else if (obj && obj.type === "market_listings_updated") {//挂单变动
       obj.endMarketListings.forEach(order => {
+        if(order.filledQuantity == 0) return;//没有成交的订单不记录
         let key = order.itemHrid + "_" + order.enhancementLevel;
         
         let tradeItem = trade_history[key]||{}
