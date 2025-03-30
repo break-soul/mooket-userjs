@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      2025-03-29.52014
+// @version      2025-03-30.43118
 // @description  银河奶牛历史价格 show history market data for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -748,7 +748,7 @@
     '/items/mirror_of_protection': '保护之镜'
   };
   let trade_history = {};
-  if(localStorage.getItem("mooket_trade_history")) {
+  if (localStorage.getItem("mooket_trade_history")) {
     trade_history = JSON.parse(localStorage.getItem("mooket_trade_history"));
   }
 
@@ -788,13 +788,13 @@
       requestItemPrice(obj.marketItemOrderBooks.itemHrid, cur_day);
     } else if (obj && obj.type === "market_listings_updated") {//挂单变动
       obj.endMarketListings.forEach(order => {
-        if(order.filledQuantity == 0) return;//没有成交的订单不记录
+        if (order.filledQuantity == 0) return;//没有成交的订单不记录
         let key = order.itemHrid + "_" + order.enhancementLevel;
-        
-        let tradeItem = trade_history[key]||{}
-        if(order.isSell){
+
+        let tradeItem = trade_history[key] || {}
+        if (order.isSell) {
           tradeItem.sell = order.price;
-        }else{
+        } else {
           tradeItem.buy = order.price;
         }
         trade_history[key] = tradeItem;
@@ -1041,7 +1041,8 @@
 
       case 7: // 7天：月/日 + 时段
         return `${day}.${hours}`;
-
+      case 14: // 14天：月/日 + 时段
+        return `${day}.${hours}`;
       case 30: // 30天：月/日
         return `${month}/${day}`;
 
@@ -1073,20 +1074,18 @@
     //根据day输出不同的时间表示，<3天显示时分，<=7天显示日时，<=30天显示月日，>30天显示年月
 
     //显示历史价格
-    let enhancementLevel = document.querySelector(".MarketplacePanel_infoContainer__2mCnh .Item_enhancementLevel__19g-e")?.textContent.replace("+","") ||"0";
-    let tradeName = curHridName+"_"+parseInt(enhancementLevel);
-    if(trade_history[tradeName]){
-      let buy = trade_history[tradeName].buy||"无";
-      let sell = trade_history[tradeName].sell||"无";
+    let enhancementLevel = document.querySelector(".MarketplacePanel_infoContainer__2mCnh .Item_enhancementLevel__19g-e")?.textContent.replace("+", "") || "0";
+    let tradeName = curHridName + "_" + parseInt(enhancementLevel);
+    if (trade_history[tradeName]) {
+      let buy = trade_history[tradeName].buy || "无";
+      let sell = trade_history[tradeName].sell || "无";
       price_info.style.display = "block";
-      let levelStr = enhancementLevel>0? "(+"+enhancementLevel+")":"";
+      let levelStr = enhancementLevel > 0 ? "(+" + enhancementLevel + ")" : "";
       price_info.innerHTML = `<span style="color:red">${showNumber(buy)}</span>/<span style="color:green">${showNumber(sell)}</span>${levelStr}`;
-      container.style.minWidth = price_info.clientWidth+70+"px";
-      
-    }else{
+      container.style.minWidth = price_info.clientWidth + 70 + "px";
+
+    } else {
       price_info.style.display = "none";
-      container.style.width = "auto";
-      container.style.height = "auto";
       container.style.minWidth = "65px";
     }
 
