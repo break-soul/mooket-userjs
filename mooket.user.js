@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      2025-03-31.36857
+// @version      20250331.41015
 // @description  银河奶牛历史价格 show history market data for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -847,6 +847,7 @@
   container.style.minHeight = "33px";
   container.style.minWidth = "70px";
   container.style.cursor = "move";
+  container.style.userSelect="none";
   container.addEventListener("mousedown", function (e) {
     const rect = container.getBoundingClientRect();
     if (e.clientX > rect.right - 10 && e.clientY > rect.bottom - 10) {
@@ -942,6 +943,7 @@
   function toggle() {
     if (wrapper.style.display === 'none') {
       wrapper.style.display = ctx.style.display = 'block';
+      container.style.resize = "both";
       btn_close.value = '📈隐藏';
       container.style.width = lastWidth;
       container.style.height = lastHeight;
@@ -951,6 +953,7 @@
       lastWidth = container.style.width;
       lastHeight = container.style.height;
       wrapper.style.display = ctx.style.display = 'none';
+      container.style.resize = "none";
       container.style.width = "auto";
       container.style.height = "auto";
       btn_close.value = '📈显示';
