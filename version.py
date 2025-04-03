@@ -7,7 +7,7 @@ content = sys.stdin.read()
 # 执行版本号替换
 new_content = re.sub(
     r'(// @version\s+).*',
-    lambda m: m.group(1) + datetime.now().strftime('%Y-%m-%d')+f'.{int(time.time()%86400)}',
+    lambda m: m.group(1) + datetime.now().strftime('%Y%m%d')+f'.{int(time.time()%86400)}',
     content
 )
 

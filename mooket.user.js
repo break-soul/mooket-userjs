@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250331.41015
+// @version      20250403.20974
 // @description  银河奶牛历史价格 show history market data for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -1055,15 +1055,19 @@
   }
 
   function showNumber(num) {
-    //判断是否是数字，如果不是则返回原值
-    if (isNaN(num)) return num;
+    if(isNaN(num))return num;
+    if (num === 0) return "0";  // 单独处理0的情况
+
     const absNum = Math.abs(num);
 
-    return absNum >= 1e10 ? `${Math.floor(num / 1e9)}B` :
-      absNum >= 1e7 ? `${Math.floor(num / 1e6)}M` :
-        absNum >= 1e4 ? `${Math.floor(num / 1e3)}K` :
-          `${Math.floor(num)}`;
-  }
+    //num保留一位小数
+    if (num < 1) return num.toFixed(2);
+
+    return absNum >= 1e10 ? `${(num / 1e9).toFixed(1)}B` :
+        absNum >= 1e7 ? `${(num / 1e6).toFixed(1)}M` :
+            absNum >= 1e4 ? `${Math.floor(num / 1e3)}K` :
+                `${Math.floor(num)}`;
+}
   //data={'bid':[{time:1,price:1}],'ask':[{time:1,price:1}]}
   function updateChart(data, day) {
     //过滤异常元素
