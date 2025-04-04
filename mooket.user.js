@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250403.20974
+// @version      20250404.50493
 // @description  银河奶牛历史价格 show history market data for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -824,8 +824,8 @@
       w = "280px";
       h = "500px";
     } else {
-      w = "500px";
-      h = "280px";
+      w = "400px";
+      h = "200px";
     }
   }
   checkSize();
@@ -835,8 +835,8 @@
   container.style.backgroundColor = "#fff";
   container.style.position = "fixed";
   container.style.zIndex = 10000;
-  container.style.top = "50px"; //距离顶部位置
-  container.style.left = "130px"; //距离左侧位置
+  container.style.top = "100px"; //距离顶部位置
+  container.style.left = "30px"; //距离左侧位置
   container.style.width = w; //容器宽度
   container.style.height = h; //容器高度
   container.style.resize = "both";
@@ -864,6 +864,29 @@
     document.onmouseup = function () {
       document.onmousemove = document.onmouseup = null;
     };
+  });
+  // 监听touchstart事件来处理手机拖动
+  container.addEventListener("touchstart", function (e) {
+    const touch = e.touches[0];
+    const rect = container.getBoundingClientRect();
+    if (touch.clientX > rect.right - 10 && touch.clientY > rect.bottom - 10) {
+      return;
+    }
+    let disX = touch.clientX - container.offsetLeft;
+    let disY = touch.clientY - container.offsetTop;
+
+    document.addEventListener("touchmove", function (e) {
+      const touch = e.touches[0];
+      let x = touch.clientX - disX;
+      let y = touch.clientY - disY;
+      container.style.left = x + 'px';
+      container.style.top = y + 'px';
+    });
+
+    document.addEventListener("touchend", function () {
+      document.removeEventListener("touchmove", arguments.callee);
+      document.removeEventListener("touchend", arguments.callee);
+    });
   });
   document.body.appendChild(container);
 
