@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250404.52925
+// @version      20250404.53709
 // @description  银河奶牛历史价格 show history market data for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -856,7 +856,7 @@
   container.addEventListener("mousedown", function (e) {
     if(mouseDragging||touchDragging)return;
     const rect = container.getBoundingClientRect();
-    if(e.clientX > rect.right - 10 || e.clientY > rect.bottom - 10) return;
+    if(container.style.resize === "both" && (e.clientX > rect.right - 10 || e.clientY > rect.bottom - 10)) return;
     mouseDragging = true;
     offsetX = e.clientX - container.offsetLeft;
     offsetY = e.clientY - container.offsetTop;
@@ -879,7 +879,7 @@
     if(mouseDragging||touchDragging)return;
     const rect = container.getBoundingClientRect();
     let touch = e.touches[0];
-    if(touch.clientX > rect.right - 10 || touch.clientY > rect.bottom - 10) return;
+    if(container.style.resize === "both" && (e.clientX > rect.right - 10 || e.clientY > rect.bottom - 10)) return;
     touchDragging = true;
     offsetX = touch.clientX - container.offsetLeft;
     offsetY = touch.clientY - container.offsetTop;
