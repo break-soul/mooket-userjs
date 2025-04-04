@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250404.50493
+// @version      20250404.52925
 // @description  银河奶牛历史价格 show history market data for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -821,11 +821,11 @@
   };
   function checkSize() {
     if (window.innerWidth < window.innerHeight) {
-      w = "280px";
-      h = "500px";
+      w = "250px";
+      h = "400px";
     } else {
       w = "400px";
-      h = "200px";
+      h = "250px";
     }
   }
   checkSize();
@@ -835,8 +835,8 @@
   container.style.backgroundColor = "#fff";
   container.style.position = "fixed";
   container.style.zIndex = 10000;
-  container.style.top = "100px"; //距离顶部位置
-  container.style.left = "30px"; //距离左侧位置
+  container.style.top = "30px"; //距离顶部位置
+  container.style.left = "20px"; //距离左侧位置
   container.style.width = w; //容器宽度
   container.style.height = h; //容器高度
   container.style.resize = "both";
@@ -845,54 +845,66 @@
   container.style.flexDirection = "column";
   container.style.flex = "1";
   container.style.minHeight = "33px";
-  container.style.minWidth = "70px";
+  container.style.minWidth = "68px";
   container.style.cursor = "move";
-  container.style.userSelect="none";
+  container.style.userSelect = "none";
+
+  let mouseDragging = false;
+  let touchDragging = false;
+  let offsetX, offsetY;
+
   container.addEventListener("mousedown", function (e) {
+    if(mouseDragging||touchDragging)return;
     const rect = container.getBoundingClientRect();
-    if (e.clientX > rect.right - 10 && e.clientY > rect.bottom - 10) {
-      return;
-    }
-    let disX = e.clientX - container.offsetLeft;
-    let disY = e.clientY - container.offsetTop;
-    document.onmousemove = function (e) {
-      let x = e.clientX - disX;
-      let y = e.clientY - disY;
-      container.style.left = x + 'px';
-      container.style.top = y + 'px';
-    };
-    document.onmouseup = function () {
-      document.onmousemove = document.onmouseup = null;
-    };
+    if(e.clientX > rect.right - 10 || e.clientY > rect.bottom - 10) return;
+    mouseDragging = true;
+    offsetX = e.clientX - container.offsetLeft;
+    offsetY = e.clientY - container.offsetTop;
   });
-  // 监听touchstart事件来处理手机拖动
-  container.addEventListener("touchstart", function (e) {
-    const touch = e.touches[0];
-    const rect = container.getBoundingClientRect();
-    if (touch.clientX > rect.right - 10 && touch.clientY > rect.bottom - 10) {
-      return;
+
+  document.addEventListener("mousemove", function (e) {
+    if (mouseDragging) {
+      var newX = e.clientX - offsetX;
+      var newY = e.clientY - offsetY;
+      container.style.left = newX + "px";
+      container.style.top = newY + "px";
     }
-    let disX = touch.clientX - container.offsetLeft;
-    let disY = touch.clientY - container.offsetTop;
+  });
 
-    document.addEventListener("touchmove", function (e) {
-      const touch = e.touches[0];
-      let x = touch.clientX - disX;
-      let y = touch.clientY - disY;
-      container.style.left = x + 'px';
-      container.style.top = y + 'px';
-    });
+  document.addEventListener("mouseup", function () {
+    mouseDragging = false;
+  });
 
-    document.addEventListener("touchend", function () {
-      document.removeEventListener("touchmove", arguments.callee);
-      document.removeEventListener("touchend", arguments.callee);
-    });
+  container.addEventListener("touchstart", function (e) {
+    if(mouseDragging||touchDragging)return;
+    const rect = container.getBoundingClientRect();
+    let touch = e.touches[0];
+    if(touch.clientX > rect.right - 10 || touch.clientY > rect.bottom - 10) return;
+    touchDragging = true;
+    offsetX = touch.clientX - container.offsetLeft;
+    offsetY = touch.clientY - container.offsetTop;
+  });
+
+  document.addEventListener("touchmove", function (e) {
+    if (touchDragging) {
+      let touch = e.touches[0];
+      var newX = touch.clientX - offsetX;
+      var newY = touch.clientY - offsetY;
+      container.style.left = newX + "px";
+      container.style.top = newY + "px";
+    }
+  });
+
+  document.addEventListener("touchend", function () {
+    touchDragging = false;
   });
   document.body.appendChild(container);
 
   const ctx = document.createElement('canvas');
   ctx.id = "myChart";
   container.appendChild(ctx);
+
+
 
   // 创建下拉菜单并设置样式和位置
   let wrapper = document.createElement('div');
@@ -929,15 +941,34 @@
 
   wrapper.appendChild(select);
 
+  // 创建一个容器元素并设置样式和位置
+  const leftContainer = document.createElement('div');
+  leftContainer.style.padding = '2px'
+  leftContainer.style.display = 'flex';
+  leftContainer.style.flexDirection = 'row';
+  leftContainer.style.alignItems = 'center'
+  container.appendChild(leftContainer);
+
+  //添加一个btn隐藏canvas和wrapper
+  let btn_close = document.createElement('input');
+  btn_close.type = 'button';
+  btn_close.value = '📈隐藏';
+  btn_close.style.margin = 0;
+  btn_close.style.cursor = 'pointer';
+
+  leftContainer.appendChild(btn_close);
+
+
   //一个固定的文本显示买入卖出历史价格
   let price_info = document.createElement('div');
-  price_info.style.position = 'absolute';
-  price_info.style.top = '5px';
-  price_info.style.left = '65px';
+
   price_info.style.fontSize = '14px';
   price_info.title = "我的最近买/卖价格"
   price_info.style.width = "max-content";
   price_info.style.whiteSpace = "nowrap";
+  price_info.style.lineHeight = '25px';
+  price_info.style.display = 'none';
+  price_info.style.marginLeft = '5px';
 
   let buy_price = document.createElement('span');
   let sell_price = document.createElement('span');
@@ -946,28 +977,19 @@
   buy_price.style.color = 'red';
   sell_price.style.color = 'green';
 
-  container.appendChild(price_info);
+  leftContainer.appendChild(price_info);
 
-  //添加一个btn隐藏canvas和wrapper
-  let btn_close = document.createElement('input');
-  btn_close.type = 'button';
-  btn_close.value = '📈隐藏';
-  btn_close.style.textAlign = 'center';
-  btn_close.style.display = 'inline';
-  btn_close.style.margin = 0;
-  btn_close.style.top = '2px';
-  btn_close.style.left = '2px';
-  btn_close.style.cursor = 'pointer';
-  btn_close.style.position = 'absolute';
   let lastWidth;
   let lastHeight;
   btn_close.onclick = toggle;
-
   function toggle() {
     if (wrapper.style.display === 'none') {
       wrapper.style.display = ctx.style.display = 'block';
       container.style.resize = "both";
       btn_close.value = '📈隐藏';
+      leftContainer.style.position = 'absolute'
+      leftContainer.style.top = '1px';
+      leftContainer.style.left = '1px';
       container.style.width = lastWidth;
       container.style.height = lastHeight;
       config.visible = true;
@@ -979,13 +1001,18 @@
       container.style.resize = "none";
       container.style.width = "auto";
       container.style.height = "auto";
+
+
       btn_close.value = '📈显示';
+      leftContainer.style.position = 'relative'
+      leftContainer.style.top = 0;
+      leftContainer.style.left = 0;
+
       config.visible = false;
       save_config();
     }
   };
 
-  container.appendChild(btn_close);
   let chart = new Chart(ctx, {
     type: 'line',
     data: {
@@ -1078,7 +1105,7 @@
   }
 
   function showNumber(num) {
-    if(isNaN(num))return num;
+    if (isNaN(num)) return num;
     if (num === 0) return "0";  // 单独处理0的情况
 
     const absNum = Math.abs(num);
@@ -1087,10 +1114,10 @@
     if (num < 1) return num.toFixed(2);
 
     return absNum >= 1e10 ? `${(num / 1e9).toFixed(1)}B` :
-        absNum >= 1e7 ? `${(num / 1e6).toFixed(1)}M` :
-            absNum >= 1e4 ? `${Math.floor(num / 1e3)}K` :
-                `${Math.floor(num)}`;
-}
+      absNum >= 1e7 ? `${(num / 1e6).toFixed(1)}M` :
+        absNum >= 1e4 ? `${Math.floor(num / 1e3)}K` :
+          `${Math.floor(num)}`;
+  }
   //data={'bid':[{time:1,price:1}],'ask':[{time:1,price:1}]}
   function updateChart(data, day) {
     //过滤异常元素
@@ -1109,14 +1136,14 @@
     if (trade_history[tradeName]) {
       let buy = trade_history[tradeName].buy || "无";
       let sell = trade_history[tradeName].sell || "无";
-      price_info.style.display = "block";
+      price_info.style.display = "inline-block";
       let levelStr = enhancementLevel > 0 ? "(+" + enhancementLevel + ")" : "";
       price_info.innerHTML = `<span style="color:red">${showNumber(buy)}</span>/<span style="color:green">${showNumber(sell)}</span>${levelStr}`;
       container.style.minWidth = price_info.clientWidth + 70 + "px";
 
     } else {
       price_info.style.display = "none";
-      container.style.minWidth = "70px";
+      container.style.minWidth = "68px";
     }
 
     let labels = data.bid.map(x => formatTime(x.time, day));
