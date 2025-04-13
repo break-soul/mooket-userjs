@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250413.31763
+// @version      20250413.35448
 // @description  银河奶牛历史价格 show history market data for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -10,7 +10,7 @@
 // @icon         data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==
 // @grant        none
 // @require      https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js
-// @require      https://update.greasyfork.org/scripts/532609/1569730/MWICore.js
+// @require      https://update.greasyfork.org/scripts/532609/1570245/MWICore.js
 // @run-at       document-start
 // @license MIT
 // ==/UserScript==
