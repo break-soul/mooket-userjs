@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250413.35448
+// @version      20250413.36065
 // @description  银河奶牛历史价格 show history market data for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -307,7 +307,7 @@
       let itemNameEN = window.mwi.game.state.itemDetailDict[itemHridName].name;
 
 
-      curShowItemName = localStorage.getItem("i18nextLng") === "zh" ?
+      curShowItemName = localStorage.getItem("i18nextLng")?.startsWith("zh") ?
         window.mwi.lang.zh.translation.itemNames[itemHridName] : window.mwi.lang.en.translation.itemNames[itemHridName];
 
 
