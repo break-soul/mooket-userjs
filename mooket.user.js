@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250413.28804
+// @version      20250413.31763
 // @description  银河奶牛历史价格 show history market data for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -52,10 +52,11 @@
     let cur_day = 1;
     let curHridName = null;
     let curShowItemName = null;
-    let w = "500px";
-    let h = "280px";
+    let w = "500";
+    let h = "280";
+
     let configStr = localStorage.getItem("mooket_config");
-    let config = configStr ? JSON.parse(configStr) : {"x":"0","y":"0", "dayIndex": 0, "visible": true, "filter": { "bid": true, "ask": true, "mean": true } };
+    let config = configStr ? JSON.parse(configStr) : { "dayIndex": 0, "visible": true, "filter": { "bid": true, "ask": true, "mean": true } };
     cur_day = config.day;//读取设置
 
     window.onresize = function () {
@@ -63,24 +64,25 @@
     };
     function checkSize() {
       if (window.innerWidth < window.innerHeight) {
-        w = "250px";
-        h = "400px";
+        w = "250";
+        h = "400";
       } else {
-        w = "400px";
-        h = "250px";
+        w = "400";
+        h = "250";
       }
     }
     checkSize();
+
     // 创建容器元素并设置样式和位置
     const container = document.createElement('div');
     container.style.border = "1px solid #ccc"; //边框样式
     container.style.backgroundColor = "#fff";
     container.style.position = "fixed";
     container.style.zIndex = 10000;
-    container.style.top = `${config.x||0}px`; //距离顶部位置
-    container.style.left = `${config.y||0}px`; //距离左侧位置
-    container.style.width = w; //容器宽度
-    container.style.height = h; //容器高度
+    container.style.top = `${Math.max(0, Math.min(config.y || 0, window.innerHeight - 50))}px`; //距离顶部位置
+    container.style.left = `${Math.max(0, Math.min(config.x || 0, window.innerWidth - 50))}px`; //距离左侧位置
+    container.style.width = `${Math.max(0, Math.min(config.w || w, window.innerWidth - 50))}px`; //容器宽度
+    container.style.height = `${Math.max(0, Math.min(config.h || h, window.innerHeight - 50))}px`; //容器高度
     container.style.resize = "both";
     container.style.overflow = "auto";
     container.style.display = "flex";
@@ -95,6 +97,11 @@
     let touchDragging = false;
     let offsetX, offsetY;
 
+    let resizeEndTimer = null;
+    container.addEventListener("resize", () => {
+      if (resizeEndTimer) clearTimeout(resizeEndTimer);
+      resizeEndTimer = setTimeout(save_config, 1000);
+    });
     container.addEventListener("mousedown", function (e) {
       if (mouseDragging || touchDragging) return;
       const rect = container.getBoundingClientRect();
@@ -115,6 +122,7 @@
 
     document.addEventListener("mouseup", function () {
       mouseDragging = false;
+      save_config();
     });
 
     container.addEventListener("touchstart", function (e) {
@@ -139,6 +147,7 @@
 
     document.addEventListener("touchend", function () {
       touchDragging = false;
+      save_config();
     });
     document.body.appendChild(container);
 
@@ -440,18 +449,22 @@
         config.filter.bid = chart.getDatasetMeta(1).visible;
         config.filter.mean = chart.getDatasetMeta(2).visible;
       }
-      config.x = Math.max(0,Math.min(container.getBoundingClientRect().x,window.innerWidth));
-      config.y = Math.max(0,Math.min(container.getBoundingClientRect().y,window.innerHeight));
+      config.x = Math.max(0, Math.min(container.getBoundingClientRect().x, window.innerWidth - 50));
+      config.y = Math.max(0, Math.min(container.getBoundingClientRect().y, window.innerHeight - 50));
+      if (container.style.width != "auto") {
+        config.w = container.clientWidth;
+        config.h = container.clientHeight;
+      }
 
       localStorage.setItem("mooket_config", JSON.stringify(config));
     }
-    setInterval(()=>{
-      if(document.querySelector(".MarketplacePanel_marketplacePanel__21b7o")?.checkVisibility()){
-        container.style.display="block"
-      }else{
-        container.style.display="none"
+    setInterval(() => {
+      if (document.querySelector(".MarketplacePanel_marketplacePanel__21b7o")?.checkVisibility()) {
+        container.style.display = "block"
+      } else {
+        container.style.display = "none"
       }
-    },1000);
+    }, 1000);
     toggle();
   });
 })();
