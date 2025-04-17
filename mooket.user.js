@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250418.72317
+// @version      20250418.73781
 // @description  银河奶牛历史价格 show history market data for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -396,17 +396,17 @@
   }
   //data={'bid':[{time:1,price:1}],'ask':[{time:1,price:1}]}
   function updateChart(data, day) {
-    //过滤异常元素
+    //字段名差异
     data.bid = data.bid||data.bids
     data.ask = data.ask||data.asks;
-    /*
+    //过滤异常元素
     for (let i = data.bid.length - 1; i >= 0; i--) {
-      if (data.bid[i].price < 0 || data.ask[i].price < 0) {
+      if (data.bid[i].price < 0 && data.ask[i].price < 0) {
         data.bid.splice(i, 1);
         data.ask.splice(i, 1);
       }
     }
-      */
+    
     //timestamp转日期时间
     //根据day输出不同的时间表示，<3天显示时分，<=7天显示日时，<=30天显示月日，>30天显示年月
 
