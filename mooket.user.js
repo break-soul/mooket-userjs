@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250418.61419
+// @version      20250418.72317
 // @description  银河奶牛历史价格 show history market data for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -36,7 +36,8 @@
         }
         trade_history[key] = tradeItem;
       });
-      localStorage.setItem("mooket_trade_history", JSON.stringify(trade_history));//保存挂单数据
+      if(window.mwi?.game?.state?.character?.gameMode==="standard")//只记录标准模式的数据，因为铁牛不能交易
+        localStorage.setItem("mooket_trade_history", JSON.stringify(trade_history));//保存挂单数据
     });
   }
 
