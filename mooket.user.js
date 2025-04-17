@@ -1,12 +1,12 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250415.35066
+// @version      20250418.61419
 // @description  银河奶牛历史价格 show history market data for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
 // @match        https://test.milkywayidle.com/*
-// @icon         data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==
+// @icon         https://www.milkywayidle.com/favicon.svg
 // @grant        none
 // @require      https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js
 // @license MIT
@@ -22,9 +22,7 @@
   window.addEventListener("MWICoreInitialized", registerHooks);
   function registerHooks() {
     console.info("mooket 初始化完成");
-    window.mwi.hookCallback(window.mwi.game, "handleMessageMarketItemOrderBooksUpdated", (_, obj) => {
-      requestItemPrice(obj.marketItemOrderBooks.itemHrid, cur_day);
-    });
+
     window.mwi.hookCallback(window.mwi.game, "handleMessageMarketListingsUpdated", (_, obj) => {
       obj.endMarketListings.forEach(order => {
         if (order.filledQuantity == 0) return;//没有成交的订单不记录
@@ -49,6 +47,7 @@
 
   let cur_day = 1;
   let curHridName = null;
+  let curLevel = 0;
   let curShowItemName = null;
   let w = "500";
   let h = "280";
@@ -186,9 +185,8 @@
   select.style.cursor = 'pointer';
   select.style.verticalAlign = 'middle';
   select.onchange = function () {
-    cur_day = this.value;
     config.dayIndex = days.indexOf(parseInt(this.value));
-    if (curHridName) requestItemPrice(curHridName, cur_day);
+    if (curHridName) requestItemPrice(curHridName, this.value,curLevel);
     save_config();
   };
 
@@ -310,30 +308,44 @@
     }
   });
 
-  function requestItemPrice(itemHridName, day = 1) {
+  function requestItemPrice(itemHridName, day = 1, level = 0) {
+    if(!itemHridName) return;
+    if (curHridName === itemHridName && curLevel === level && cur_day === day) return;//防止重复请求
+
     curHridName = itemHridName;
+    curLevel = level;
     cur_day = day;
-
-    let itemNameEN = window.mwi.game.state.itemDetailDict[itemHridName].name;
-
 
     curShowItemName = localStorage.getItem("i18nextLng")?.startsWith("zh") ?
       window.mwi.lang.zh.translation.itemNames[itemHridName] : window.mwi.lang.en.translation.itemNames[itemHridName];
-
+    curShowItemName += curLevel > 0 ? "+" + curLevel : "";
 
     let time = day * 3600 * 24;
-    fetch("https://mooket.qi-e.top/market", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name: itemNameEN,
-        time: time
+    const HOST = "https://mooket.qi-e.top";
+    if (curLevel > 0 || day < 2) {
+      const params = new URLSearchParams();
+      params.append("name", curHridName);
+      params.append("level", curLevel);
+      params.append("time",time);
+      fetch(`${HOST}/market/item/history?${params}`).then(res => {
+        res.json().then(data => updateChart(data, cur_day));
       })
-    }).then(res => {
-      res.json().then(data => updateChart(data, cur_day));
-    })
+    }//新api
+    else {//旧api
+      let itemNameEN = window.mwi.game.state.itemDetailDict[itemHridName].name;
+      fetch(`${HOST}/market`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: itemNameEN,
+          time: time
+        })
+      }).then(res => {
+        res.json().then(data => updateChart(data, cur_day));
+      })
+    }
   }
 
   function formatTime(timestamp, range) {
@@ -384,12 +396,16 @@
   //data={'bid':[{time:1,price:1}],'ask':[{time:1,price:1}]}
   function updateChart(data, day) {
     //过滤异常元素
+    data.bid = data.bid||data.bids
+    data.ask = data.ask||data.asks;
+    /*
     for (let i = data.bid.length - 1; i >= 0; i--) {
       if (data.bid[i].price < 0 || data.ask[i].price < 0) {
         data.bid.splice(i, 1);
         data.ask.splice(i, 1);
       }
     }
+      */
     //timestamp转日期时间
     //根据day输出不同的时间表示，<3天显示时分，<=7天显示日时，<=30天显示月日，>30天显示年月
 
@@ -471,6 +487,14 @@
   setInterval(() => {
     if (document.querySelector(".MarketplacePanel_marketplacePanel__21b7o")?.checkVisibility()) {
       container.style.display = "block"
+      try {
+        let currentItem = document.querySelector(".MarketplacePanel_currentItem__3ercC");
+        let level = currentItem?.querySelector(".Item_enhancementLevel__19g-e");
+        let itemHrid = mwi.ensureItemHrid(currentItem?.querySelector(".Icon_icon__2LtL_")?.ariaLabel);
+        requestItemPrice(itemHrid, cur_day, parseInt(level?.textContent.replace("+", "") || "0"))
+      } catch (e) {
+        console.log(e)
+      }
     } else {
       container.style.display = "none"
     }
