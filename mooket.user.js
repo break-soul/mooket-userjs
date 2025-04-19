@@ -16,7 +16,14 @@
 (function () {
   'use strict';
   if (!window.mwi) {
-    console.error("mooket需要安装MWICore插件才能使用");
+    const MWICore = "https://greasyfork.org/zh-CN/scripts/532609-mwicore";
+    console.error(`mooket需要安装MWICore插件才能使用(${MWICore})`);
+    setTimeout(() => {
+      let tip = document.createElement("div");
+      tip.innerHTML = `mooket需要安装<a href="${MWICore}">MWICore</a>插件才能使用`;
+      tip.position = "absolute";
+      tip.onclick = () => { tip.remove(); }
+    }, 10000);
     return;
   }
   window.addEventListener("MWICoreInitialized", registerHooks);
@@ -36,7 +43,7 @@
         }
         trade_history[key] = tradeItem;
       });
-      if(window.mwi?.game?.state?.character?.gameMode==="standard")//只记录标准模式的数据，因为铁牛不能交易
+      if (window.mwi?.game?.state?.character?.gameMode === "standard")//只记录标准模式的数据，因为铁牛不能交易
         localStorage.setItem("mooket_trade_history", JSON.stringify(trade_history));//保存挂单数据
     });
   }
@@ -125,8 +132,10 @@
   });
 
   document.addEventListener("mouseup", function () {
-    mouseDragging = false;
-    save_config();
+    if (mouseDragging) {
+      mouseDragging = false;
+      save_config();
+    }
   });
 
   container.addEventListener("touchstart", function (e) {
@@ -156,8 +165,10 @@
   });
 
   document.addEventListener("touchend", function () {
-    touchDragging = false;
-    save_config();
+    if (touchDragging) {
+      touchDragging = false;
+      save_config();
+    }
   });
   document.body.appendChild(container);
 
@@ -187,7 +198,7 @@
   select.style.verticalAlign = 'middle';
   select.onchange = function () {
     config.dayIndex = days.indexOf(parseInt(this.value));
-    if (curHridName) requestItemPrice(curHridName, this.value,curLevel);
+    if (curHridName) requestItemPrice(curHridName, this.value, curLevel);
     save_config();
   };
 
@@ -310,7 +321,7 @@
   });
 
   function requestItemPrice(itemHridName, day = 1, level = 0) {
-    if(!itemHridName) return;
+    if (!itemHridName) return;
     if (curHridName === itemHridName && curLevel === level && cur_day === day) return;//防止重复请求
 
     curHridName = itemHridName;
@@ -327,7 +338,7 @@
       const params = new URLSearchParams();
       params.append("name", curHridName);
       params.append("level", curLevel);
-      params.append("time",time);
+      params.append("time", time);
       fetch(`${HOST}/market/item/history?${params}`).then(res => {
         res.json().then(data => updateChart(data, cur_day));
       })
@@ -397,19 +408,19 @@
   //data={'bid':[{time:1,price:1}],'ask':[{time:1,price:1}]}
   function updateChart(data, day) {
     //字段名差异
-    data.bid = data.bid||data.bids
-    data.ask = data.ask||data.asks;
+    data.bid = data.bid || data.bids
+    data.ask = data.ask || data.asks;
     //过滤异常元素
     for (let i = data.bid.length - 1; i >= 0; i--) {
       if (data.bid[i].price < 0 && data.ask[i].price < 0) {//都小于0，认为是异常数据，直接删除
         data.bid.splice(i, 1);
         data.ask.splice(i, 1);
-      }else{//小于0则设置为0
+      } else {//小于0则设置为0
         data.bid[i].price = Math.max(0, data.bid[i].price);
         data.ask[i].price = Math.max(0, data.ask[i].price);
       }
     }
-    
+
     //timestamp转日期时间
     //根据day输出不同的时间表示，<3天显示时分，<=7天显示日时，<=30天显示月日，>30天显示年月
 
