@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250419.1.6
+// @version      20250419.1.7
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -209,7 +209,106 @@
         throw error;
       });
   }
+  class ReconnectWebSocket {
+    constructor(url, options = {}) {
+      this.url = url; // WebSocket 服务器地址
+      this.reconnectInterval = options.reconnectInterval || 10000; // 重连间隔（默认 5 秒）
+      this.heartbeatInterval = options.heartbeatInterval || 60000; // 心跳间隔（默认 60 秒）
+      this.maxReconnectAttempts = options.maxReconnectAttempts || 9999999; // 最大重连次数
+      this.reconnectAttempts = 0; // 当前重连次数
+      this.ws = null; // WebSocket 实例
+      this.heartbeatTimer = null; // 心跳定时器
+      this.isManualClose = false; // 是否手动关闭连接
 
+      // 绑定事件处理器
+      this.onOpen = options.onOpen || (() => { });
+      this.onMessage = options.onMessage || (() => { });
+      this.onClose = options.onClose || (() => { });
+      this.onError = options.onError || (() => { });
+
+      this.connect();
+    }
+
+    // 连接 WebSocket
+    connect() {
+      this.ws = new WebSocket(this.url);
+
+      // WebSocket 打开事件
+      this.ws.onopen = () => {
+        console.log('WebMooket connected');
+        this.reconnectAttempts = 0; // 重置重连次数
+        this.startHeartbeat(); // 启动心跳
+        this.onOpen();
+      };
+
+      // WebSocket 消息事件
+      this.ws.onmessage = (event) => {
+        this.onMessage(event.data);
+      };
+
+      // WebSocket 关闭事件
+      this.ws.onclose = () => {
+        console.log('WebMooket disconnected');
+        this.stopHeartbeat(); // 停止心跳
+        this.onClose();
+
+        if (!this.isManualClose) {
+          this.reconnect();
+        }
+      };
+
+      // WebSocket 错误事件
+      this.ws.onerror = (error) => {
+        console.error('WebMooket error:', error);
+        this.onError(error);
+      };
+    }
+
+    // 启动心跳
+    startHeartbeat() {
+      this.heartbeatTimer = setInterval(() => {
+        if (this.ws.readyState === WebSocket.OPEN) {
+          //this.ws.send("ping");
+        }
+      }, this.heartbeatInterval);
+    }
+
+    // 停止心跳
+    stopHeartbeat() {
+      if (this.heartbeatTimer) {
+        clearInterval(this.heartbeatTimer);
+        this.heartbeatTimer = null;
+      }
+    }
+
+    // 自动重连
+    reconnect() {
+      if (this.reconnectAttempts < this.maxReconnectAttempts) {
+        console.log(`Reconnecting in ${this.reconnectInterval / 1000} seconds...`);
+        setTimeout(() => {
+          this.reconnectAttempts++;
+          this.connect();
+        }, this.reconnectInterval);
+      } else {
+        console.error('Max reconnection attempts reached');
+      }
+    }
+
+    // 发送消息
+    send(data) {
+      if (this.ws.readyState === WebSocket.OPEN) {
+        this.ws.send(data);
+      } else {
+        console.error('WebMooket is not open');
+      }
+    }
+
+    // 手动关闭连接
+    close() {
+      this.isManualClose = true;
+      this.ws.close();
+    }
+  }
   /*实时市场模块*/
   const HOST = "https://mooket.qi-e.top";
   const MWIAPI_URL = "https://raw.githubusercontent.com/holychikenz/MWIApi/main/milkyapi.json";
@@ -218,11 +317,15 @@
     marketData = {};//市场数据，带强化等级，存储格式{"/items/apple_yogurt:0":{ask,bid,time}}
     fetchTimeDict = {};//记录上次API请求时间，防止频繁请求
     ttl = 300;//缓存时间，单位秒
-
+    trade_ws = null;
     constructor() {
       //core data
       let marketDataStr = localStorage.getItem("MWICore_marketData") || "{}";
       this.marketData = JSON.parse(marketDataStr);
+      
+      if(mwi.game?.state?.character?.gameMode==="standard"){//标准模式才连接ws服务器，铁牛模式不连接ws服务器
+        this.trade_ws = new ReconnectWebSocket(`${HOST}/market/ws`);
+      }
 
       //mwiapi data
       let mwiapiJsonStr = localStorage.getItem("MWIAPI_JSON") || localStorage.getItem("MWITools_marketAPI_json");
@@ -242,19 +345,36 @@
           })
         });
       }
+      (this.trade_ws??{}).onMessage = (data) => {
+        if (data === "ping") { return; }//心跳包，忽略
+        let obj = JSON.parse(data);
+        if (obj && obj.type === "marketItemOrderBooksUpdated") {
+          this.handleMessageMarketItemOrderBooksUpdated(obj, false);//收到市场服务器数据，不上传
+        } else if (obj && obj.type === "ItemPrice") {
+          this.processItemPrice(obj);
+        }
 
+
+      }
       //市场数据更新
-      hookCallback(mwi.game, "handleMessageMarketItemOrderBooksUpdated", (res, obj) => {
-        //更新本地
-        let timestamp = parseInt(Date.now() / 1000);
-        let itemHrid = obj.marketItemOrderBooks.itemHrid;
-        obj.marketItemOrderBooks?.orderBooks?.forEach((item, enhancementLevel) => {
-          let bid = item.bids?.length > 0 ? item.bids[0].price : -1;
-          let ask = item.asks?.length > 0 ? item.asks[0].price : -1;
-          this.updateItem(itemHrid + ":" + enhancementLevel, { bid: bid, ask: ask, time: timestamp });
-        });
-        //上报数据
-        obj.time = timestamp;
+      hookCallback(mwi.game, "handleMessageMarketItemOrderBooksUpdated", (res, obj) => this.handleMessageMarketItemOrderBooksUpdated(obj, true));
+      setInterval(() => { this.save(); }, 1000 * 600);//十分钟保存一次
+    }
+    handleMessageMarketItemOrderBooksUpdated(obj, upload = false) {
+      //更新本地,游戏数据不带时间戳，市场服务器数据带时间戳
+      let timestamp = obj.time || parseInt(Date.now() / 1000);
+      let itemHrid = obj.marketItemOrderBooks.itemHrid;
+      obj.marketItemOrderBooks?.orderBooks?.forEach((item, enhancementLevel) => {
+        let bid = item.bids?.length > 0 ? item.bids[0].price : -1;
+        let ask = item.asks?.length > 0 ? item.asks[0].price : -1;
+        this.updateItem(itemHrid + ":" + enhancementLevel, { bid: bid, ask: ask, time: timestamp });
+      });
+      obj.time = timestamp;//添加时间戳
+      //上报数据
+      if (this.trade_ws) {//标准模式走ws
+        if (!upload) return;//只在game收到消息的时候上报
+        this.trade_ws.send(JSON.stringify(obj));//ws上报
+      } else {//铁牛上报
         fetchWithTimeout(`${HOST}/market/upload/order`, {
           method: "POST",
           headers: {
@@ -262,10 +382,8 @@
           },
           body: JSON.stringify(obj)
         });
-      })
-      setInterval(() => { this.save(); }, 1000 * 600);//十分钟保存一次
+      }
     }
-
     /**
      * 合并MWIAPI数据，只包含0级物品
      *
@@ -321,55 +439,21 @@
       if (!itemHrid) return null;
       let specialPrice = this.getSpecialPrice(itemHrid);
       if (specialPrice) return specialPrice;
+      let itemHridLevel = itemHrid + ":" + enhancementLevel;
 
-      let priceObj = this.marketData[itemHrid + ":" + enhancementLevel];
+      let priceObj = this.marketData[itemHridLevel];
       if (peek) return priceObj;
 
-      if (Date.now() / 1000 - this.fetchTimeDict[itemHrid + ":" + enhancementLevel] < this.ttl) return priceObj;//1分钟内直接返回本地数据，防止频繁请求服务器
-      if (this.fetchCount > 10) return priceObj;//过于频繁请求服务器
-      this.fetchCount++;
-      setTimeout(() => { this.fetchCount--; this.getItemPriceAsync(itemHrid, enhancementLevel); }, this.fetchCount * 200);//后台获取最新数据，防止阻塞
+      if (Date.now() / 1000 - this.fetchTimeDict[itemHridLevel] < this.ttl) return priceObj;//1分钟内直接返回本地数据，防止频繁请求服务器
+      this.fetchTimeDict[itemHridLevel] = Date.now() / 1000;
+      this.trade_ws?.send(JSON.stringify({ type: "GetItemPrice", name: itemHrid, level: enhancementLevel }));
       return priceObj;
     }
-    fetchCount = 0;//防止频繁请求服务器，后台获取最新数据
-
-    /**
-     * 异步获取物品价格
-     *
-     * @param {string} itemHridOrName 物品HRID或名称
-     * @param {number} [enhancementLevel=0] 增强等级，默认为0
-     * @returns {Promise<Object|null>} 返回物品价格对象或null
-     */
-    async getItemPriceAsync(itemHridOrName, enhancementLevel = 0) {
-      let itemHrid = mwi.ensureItemHrid(itemHridOrName);
-      if (!itemHrid) return null;
-      let specialPrice = this.getSpecialPrice(itemHrid);
-      if (specialPrice) return specialPrice;
-      let itemHridLevel = itemHrid + ":" + enhancementLevel;
-      if (Date.now() / 1000 - this.fetchTimeDict[itemHridLevel] < this.ttl) return this.marketData[itemHridLevel];//1分钟内请求直接返回本地数据，防止频繁请求服务器
-
-      // 构造请求参数
-      const params = new URLSearchParams();
-      params.append("name", itemHrid);
-      params.append("level", enhancementLevel);
-
-      let res = null;
-      try {
-        this.fetchTimeDict[itemHridLevel] = Date.now() / 1000;//记录请求时间
-        res = await fetchWithTimeout(`${HOST}/market/item/price?${params}`);
-      } catch (e) {
-        return this.marketData[itemHridLevel];//获取失败，直接返回本地数据
-      } finally {
-
-      }
-      if (res.status != 200) {
-        return this.marketData[itemHridLevel];//获取失败，直接返回本地数据
-      }
-      let resObj = await res.json();
+    processItemPrice(resObj) {
+      let itemHridLevel = resObj.name + ":" + resObj.level;
       let priceObj = { bid: resObj.bid, ask: resObj.ask, time: resObj.time };
       if (resObj.ttl) this.ttl = resObj.ttl;//更新ttl
       this.updateItem(itemHridLevel, priceObj);
-      return priceObj;
     }
     updateItem(itemHridLevel, priceObj, isFetch = true) {
       let localItem = this.marketData[itemHridLevel];
@@ -395,22 +479,24 @@
       localStorage.setItem("MWICore_marketData", JSON.stringify(this.marketData));
     }
   }
+
   function init() {
     mwi.itemNameToHridDict = {};
     Object.entries(mwi.lang.en.translation.itemNames).forEach(([k, v]) => { mwi.itemNameToHridDict[v] = k });
     Object.entries(mwi.lang.zh.translation.itemNames).forEach(([k, v]) => { mwi.itemNameToHridDict[v] = k });
     mwi.coreMarket = new CoreMarket();
+
     mwi.MWICoreInitialized = true;
     window.dispatchEvent(new CustomEvent("MWICoreInitialized"))
     console.info("MWICoreInitialized event dispatched. window.mwi.MWICoreInitialized=true");
   }
   new Promise(resolve => {
     const interval = setInterval(() => {
-      if (mwi.game && mwi.lang) {//等待必须组件加载完毕后再初始化
+      if (mwi.game&& mwi.lang&&mwi?.game?.state?.character?.gameMode ) {//等待必须组件加载完毕后再初始化
         clearInterval(interval);
         resolve();
       }
-    }, 100);
+    }, 200);
   }).then(() => {
     init();
     mooket();
@@ -717,7 +803,7 @@
       curShowItemName += curLevel > 0 ? "+" + curLevel : "";
 
       let time = day * 3600 * 24;
-      const HOST = "https://mooket.qi-e.top";
+      //const HOST = "https://mooket.qi-e.top";上面定义了
       if (curLevel > 0 || day < 2) {
         const params = new URLSearchParams();
         params.append("name", curHridName);
