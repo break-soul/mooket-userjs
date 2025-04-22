@@ -707,13 +707,13 @@
     picker.style.width = '20px';
     picker.style.height = '20px';
     picker.style.padding = "0"
-
+    picker.style.verticalAlign="middle"
     picker.onchange = function () {
       container.style.backgroundColor = this.value;
       config.bgcolor = this.value;
       save_config();
     }
-
+    wrapper.appendChild(picker);
 
 
 
@@ -733,7 +733,7 @@
     price_info.appendChild(buy_price);
     price_info.appendChild(sell_price);
     buy_price.style.color = 'red';
-    sell_price.style.color = 'green';
+    sell_price.style.color = 'lime';
 
     leftContainer.appendChild(price_info);
 
