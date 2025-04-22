@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250422.2.1
+// @version      20250422.2.2
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -322,8 +322,8 @@
       //core data
       let marketDataStr = localStorage.getItem("MWICore_marketData") || "{}";
       this.marketData = JSON.parse(marketDataStr);
-      
-      if(mwi.game?.state?.character?.gameMode==="standard"){//标准模式才连接ws服务器，铁牛模式不连接ws服务器
+
+      if (mwi.game?.state?.character?.gameMode === "standard") {//标准模式才连接ws服务器，铁牛模式不连接ws服务器
         this.trade_ws = new ReconnectWebSocket(`${HOST}/market/ws`);
       }
 
@@ -345,14 +345,14 @@
           })
         });
       }
-      (this.trade_ws??{}).onMessage = (data) => {
+      (this.trade_ws ?? {}).onMessage = (data) => {
         if (data === "ping") { return; }//心跳包，忽略
         let obj = JSON.parse(data);
         if (obj && obj.type === "market_item_order_books_updated") {
           this.handleMessageMarketItemOrderBooksUpdated(obj, false);//收到市场服务器数据，不上传
         } else if (obj && obj.type === "ItemPrice") {
           this.processItemPrice(obj);
-        }else{
+        } else {
           console.log(data);
         }
 
@@ -494,7 +494,7 @@
   }
   new Promise(resolve => {
     const interval = setInterval(() => {
-      if (mwi.game&& mwi.lang&&mwi?.game?.state?.character?.gameMode ) {//等待必须组件加载完毕后再初始化
+      if (mwi.game && mwi.lang && mwi?.game?.state?.character?.gameMode) {//等待必须组件加载完毕后再初始化
         clearInterval(interval);
         resolve();
       }
@@ -553,7 +553,7 @@
     // 创建容器元素并设置样式和位置
     const container = document.createElement('div');
     container.style.border = "1px solid #ccc"; //边框样式
-    container.style.backgroundColor = "#fff";
+    container.style.backgroundColor = config.bgcolor||"#000";
     container.style.position = "fixed";
     container.style.zIndex = 10000;
     container.style.top = `${Math.max(0, Math.min(config.y || 0, window.innerHeight - 50))}px`; //距离顶部位置
@@ -701,6 +701,21 @@
 
     leftContainer.appendChild(btn_close);
 
+    let picker = document.createElement('input');
+    picker.type = 'color';
+    picker.style.cursor = 'pointer';
+    picker.style.width = '20px';
+    picker.style.height = '20px';
+    picker.style.padding = "0"
+
+    picker.onchange = function () {
+      container.style.backgroundColor = this.value;
+      config.bgcolor = this.value;
+      save_config();
+    }
+
+
+
 
     //一个固定的文本显示买入卖出历史价格
     let price_info = document.createElement('div');
@@ -787,6 +802,11 @@
           title: {
             display: true,
             text: "",
+            color: "cornflowerblue",
+            font: {
+              size: 15,
+              weight: 'bold',
+            }
           }
         }
       }
