@@ -348,7 +348,7 @@
       (this.trade_ws??{}).onMessage = (data) => {
         if (data === "ping") { return; }//心跳包，忽略
         let obj = JSON.parse(data);
-        if (obj && obj.type === "marketItemOrderBooksUpdated") {
+        if (obj && obj.type === "market_item_order_books_updated") {
           this.handleMessageMarketItemOrderBooksUpdated(obj, false);//收到市场服务器数据，不上传
         } else if (obj && obj.type === "ItemPrice") {
           this.processItemPrice(obj);
@@ -988,51 +988,6 @@
     }, 500);
     //setInterval(updateInventoryStatus, 60000);
     toggle();
-    let itemUpdateTimer = null;
-    addEventListener("MWICoreItemPriceUpdated", () => {
-      if (itemUpdateTimer) clearTimeout(itemUpdateTimer);
-      itemUpdateTimer = setTimeout(updateInventoryRise, 1000);
-    });
-    function updateInventoryStatus(priceObj) {
-      document.querySelectorAll(".Inventory_items__6SXv0 .Item_item__2De2O").forEach(x => {
-
-        let level = parseInt(x?.querySelector(".Item_enhancementLevel__19g-e")?.textContent.replace("+", "") || "0");
-        let itemHrid = mwi.ensureItemHrid(x?.querySelector(".Icon_icon__2LtL_")?.ariaLabel);
-        if (itemHrid) {
-          let priceObj = mwi.coreMarket.getItemPrice(itemHrid, level, true);
-          let now = Date.now() / 1000;
-          let elapsed = now - priceObj.time;
-          let timeout = 300;
-          if (elapsed < timeout) {
-            x.style.backgroundColor = `rgba(0,255,0,${(1 - elapsed / timeout) * 0.2})`;
-          } else {
-            x.style.backgroundColor = `rgba(255,0,0,${Math.min(0.2, ((elapsed - timeout) / 3600) * 0.2)})`;
-          }
-
-        }
-
-      });
-    }
-    function updateInventoryRise(priceObj) {
-      document.querySelectorAll(".Inventory_items__6SXv0 .Item_item__2De2O")?.forEach(x => {
-
-        let level = parseInt(x?.querySelector(".Item_enhancementLevel__19g-e")?.textContent.replace("+", "") || "0");
-        let itemHrid = mwi.ensureItemHrid(x?.querySelector(".Icon_icon__2LtL_")?.ariaLabel);
-        if (itemHrid) {
-          let priceObj = mwi.coreMarket.getItemPrice(itemHrid, level, true)
-          let rise = priceObj?.rise || 0;
-          if (rise < 0) {
-            x.style.backgroundColor = `rgba(0,255,0,${Math.min(0.25 * Math.sqrt(Math.abs(rise)), 0.25) + 0.05})`;//绿跌
-          } else if (rise > 0) {
-            x.style.backgroundColor = `rgba(255,0,0,${Math.min(0.25 * Math.sqrt(Math.abs(rise)), 0.25) + 0.05})`;//红涨
-          } else {
-            x.style.backgroundColor = "#2c2e45";
-          }
-
-        }
-
-      });
-    }
     console.info("mooket 初始化完成");
   }
 })();
