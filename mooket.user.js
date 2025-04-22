@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250422.2.0
+// @version      20250422.2.1
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -541,8 +541,8 @@
     };
     function checkSize() {
       if (window.innerWidth < window.innerHeight) {//竖屏，强制设置
-        config.w = chartWidth = window.innerWidth * 0.618;
-        config.h = chartHeight = chartWidth * 0.618;
+        config.w = chartWidth = window.innerWidth * 0.8;
+        config.h = chartHeight = chartWidth * 0.6;
       } else {
         chartWidth = 400;
         chartHeight = 250;
