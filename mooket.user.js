@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250419.1.7
+// @version      20250422.2.0
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -18,7 +18,7 @@
   let injectSpace = "mwi";//use window.mwi to access the injected object
   if (window[injectSpace]) return;//已经注入
   let mwi = {//供外部调用的接口
-    version: "0.1.5",//版本号，未改动原有接口只更新最后一个版本号，更改了接口会更改次版本号，主版本暂时不更新，等稳定之后再考虑主版本号更新
+    version: "0.2.0",//版本号，未改动原有接口只更新最后一个版本号，更改了接口会更改次版本号，主版本暂时不更新，等稳定之后再考虑主版本号更新
     MWICoreInitialized: false,//是否初始化完成，完成会还会通过window发送一个自定义事件 MWICoreInitialized
 
     /*一些可以直接用的游戏数据，欢迎大家一起来整理
@@ -352,6 +352,8 @@
           this.handleMessageMarketItemOrderBooksUpdated(obj, false);//收到市场服务器数据，不上传
         } else if (obj && obj.type === "ItemPrice") {
           this.processItemPrice(obj);
+        }else{
+          console.log(data);
         }
 
 
