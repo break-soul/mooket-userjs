@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250424.3.0
+// @version      20250425.4.1
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -20,7 +20,7 @@
   let mwi = {//供外部调用的接口
     //由于脚本加载问题，注入有可能失败
     //修改了hookCallback，添加了回调前和回调后处理
-    version: "0.3.0",//版本号，未改动原有接口只更新最后一个版本号，更改了接口会更改次版本号，主版本暂时不更新，等稳定之后再考虑主版本号更新
+    version: "0.4.0",//版本号，未改动原有接口只更新最后一个版本号，更改了接口会更改次版本号，主版本暂时不更新，等稳定之后再考虑主版本号更新
     MWICoreInitialized: false,//是否初始化完成，完成会还会通过window发送一个自定义事件 MWICoreInitialized
     game: null,//注入游戏对象，可以直接访问游戏中的大量数据和方法以及消息事件等
     lang: null,//语言翻译, 例如中文物品lang.zh.translation.itemNames['/items/coin']
@@ -67,7 +67,8 @@
     getItemDetail: function (itemHrid) {
       return this.initClientData?.itemDetailMap && this.initClientData.itemDetailMap[itemHrid];
     },
-    hookMessage: hookMessage,//hook回调，用于hook游戏事件等 例如聊天消息mwi.hookCallback(mwi.game, "handleMessageChatMessageReceived",null, (_,obj)=>{console.log(obj)})
+    hookMessage: hookMessage,//hook 游戏websocket消息 例如聊天消息mwi.hookMessage("chat_message_received",obj=>{console.log(obj)})
+    hookCallback: hookCallback,//hook回调，可以hook游戏处理事件调用前后，方便做统计处理？ 例如聊天消息mwi.hookCallback("handleMessageChatMessageReceived",obj=>{console.log("before")}，obj=>{console.log("after")})
     fetchWithTimeout: fetchWithTimeout,//带超时的fetch
   };
   window[injectSpace] = mwi;
@@ -1854,7 +1855,7 @@
 
       // WebSocket 打开事件
       this.ws.onopen = () => {
-        console.log('WebMooket connected');
+        console.info('WebMooket connected');
         this.reconnectAttempts = 0; // 重置重连次数
         this.startHeartbeat(); // 启动心跳
         this.onOpen();
@@ -1867,7 +1868,7 @@
 
       // WebSocket 关闭事件
       this.ws.onclose = () => {
-        console.log('WebMooket disconnected');
+        console.warn('WebMooket disconnected');
         this.stopHeartbeat(); // 停止心跳
         this.onClose();
 
@@ -1903,7 +1904,7 @@
     // 自动重连
     reconnect() {
       if (this.reconnectAttempts < this.maxReconnectAttempts) {
-        console.log(`Reconnecting in ${this.reconnectInterval / 1000} seconds...`);
+        console.info(`Reconnecting in ${this.reconnectInterval / 1000} seconds...`);
         setTimeout(() => {
           this.reconnectAttempts++;
           this.connect();
@@ -1918,7 +1919,7 @@
       if (this.ws.readyState === WebSocket.OPEN) {
         this.ws.send(data);
       } else {
-        console.error('WebMooket is not open');
+        console.warn('WebMooket is not open');
       }
     }
 
@@ -1974,7 +1975,7 @@
               } else if (obj && obj.type === "ItemPrice") {
                 this.processItemPrice(obj);
               } else {
-                console.log(data);
+                console.warn("unknown message:", data);
               }
             }
           }
@@ -2047,9 +2048,37 @@
           let cowbells = this.getItemPrice("/items/bag_of_10_cowbells");
           return cowbells && { bid: cowbells.bid / 10, ask: cowbells.ask / 10, time: cowbells.time };
         }
+        case "/items/bag_of_10_cowbells":return null;//走普通get,这里返回空
+        case "/items/task_crystal": {//固定点金收益5000
+          return { bid: 5000, ask: 5000, time: Date.now() / 1000 }
+        }
         default:
+          let itemDetail = mwi.getItemDetail(itemHrid);
+          if (itemDetail?.categoryHrid === "/item_categories/loot") {//宝箱陨石
+            let totalAsk = 0;
+            let totalBid = 0;
+            let minTime = Date.now() / 1000;
+            this.getOpenableItems(itemHrid)?.forEach(openItem => {
+              let price = this.getItemPrice(openItem.itemHrid);
+              if (price) minTime = Math.min(minTime, price.time);
+              totalAsk += (price?.ask || 0) * openItem.count;//可以算平均价格
+              totalBid += (price?.bid || 0) * openItem.count;
+            });
+            return { bid: totalBid, ask: totalAsk, time: minTime };
+          }
           return null;
       }
+    }
+    getOpenableItems(itemHrid) {
+      let items = [];
+      for (let openItem of mwi.initClientData.openableLootDropMap[itemHrid]) {
+        if (openItem.itemHrid === "/items/purples_gift") continue;//防止循环
+        items.push({
+          itemHrid: openItem.itemHrid,
+          count: (openItem.minCount + openItem.maxCount) / 2 * openItem.dropRate
+        });
+      }
+      return items;
     }
     /**
      * 获取商品的价格
@@ -2603,7 +2632,7 @@
           let itemHrid = mwi.ensureItemHrid(currentItem?.querySelector(".Icon_icon__2LtL_")?.ariaLabel);
           requestItemPrice(itemHrid, cur_day, parseInt(level?.textContent.replace("+", "") || "0"))
         } catch (e) {
-          console.log(e)
+          console.error(e)
         }
       } else {
         container.style.display = "none"
