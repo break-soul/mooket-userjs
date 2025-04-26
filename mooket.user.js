@@ -2049,7 +2049,7 @@
           return cowbells && { bid: cowbells.bid / 10, ask: cowbells.ask / 10, time: cowbells.time };
         }
         case "/items/bag_of_10_cowbells":return null;//走普通get,这里返回空
-        case "/items/task_crystal": {//固定点金收益5000
+        case "/items/task_crystal": {//固定点金收益5000，这里计算可能有bug
           return { bid: 5000, ask: 5000, time: Date.now() / 1000 }
         }
         default:
@@ -2066,6 +2066,11 @@
             });
             return { bid: totalBid, ask: totalAsk, time: minTime };
           }
+
+          if(mwi.character?.gameMode !== "standard"){//其他物品都按点金分解价值
+            return {ask:itemDetail.sellPrice*5, bid:itemDetail.sellPrice*5, time: Date.now() / 1000};//铁牛模式分解价值等于出售价格
+          }
+
           return null;
       }
     }
