@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250425.4.1
+// @version      20250425.4.2
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -2526,7 +2526,7 @@
 
       return absNum >= 1e10 ? `${(num / 1e9).toFixed(1)}B` :
         absNum >= 1e7 ? `${(num / 1e6).toFixed(1)}M` :
-          absNum >= 1e4 ? `${Math.floor(num / 1e3)}K` :
+          absNum >= 1e5 ? `${Math.floor(num / 1e3)}K` :
             `${Math.floor(num)}`;
     }
     //data={'bid':[{time:1,price:1}],'ask':[{time:1,price:1}]}
