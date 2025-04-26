@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250425.4.2
+// @version      20250425.4.3
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -2068,7 +2068,7 @@
           }
 
           if(mwi.character?.gameMode !== "standard"){//其他物品都按点金分解价值
-            return {ask:itemDetail.sellPrice*5, bid:itemDetail.sellPrice*5, time: Date.now() / 1000};//铁牛模式分解价值等于出售价格
+            return {ask:itemDetail.sellPrice*5*0.7, bid:itemDetail.sellPrice*5*0.7, time: Date.now() / 1000};//铁牛模式显示物品价值使用点金价格*几率
           }
 
           return null;
