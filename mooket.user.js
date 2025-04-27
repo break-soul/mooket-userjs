@@ -1,14 +1,16 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250425.4.3
+// @version      20250427.4.4
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
 // @match        https://test.milkywayidle.com/*
 // @icon         https://www.milkywayidle.com/favicon.svg
 // @grant        none
-// @require      https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js
+// @require      https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js
+// @require      https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js
+// @require      https://cdn.jsdelivr.net/npm/chartjs-plugin-crosshair@2.0.0/dist/chartjs-plugin-crosshair.min.js
 // @run-at       document-start
 // @license MIT
 // ==/UserScript==
@@ -2048,7 +2050,7 @@
           let cowbells = this.getItemPrice("/items/bag_of_10_cowbells");
           return cowbells && { bid: cowbells.bid / 10, ask: cowbells.ask / 10, time: cowbells.time };
         }
-        case "/items/bag_of_10_cowbells":return null;//走普通get,这里返回空
+        case "/items/bag_of_10_cowbells": return null;//走普通get,这里返回空
         case "/items/task_crystal": {//固定点金收益5000，这里计算可能有bug
           return { bid: 5000, ask: 5000, time: Date.now() / 1000 }
         }
@@ -2067,8 +2069,8 @@
             return { bid: totalBid, ask: totalAsk, time: minTime };
           }
 
-          if(mwi.character?.gameMode !== "standard"){//其他物品都按点金分解价值
-            return {ask:itemDetail.sellPrice*5*0.7, bid:itemDetail.sellPrice*5*0.7, time: Date.now() / 1000};//铁牛模式显示物品价值使用点金价格*几率
+          if (mwi.character?.gameMode !== "standard") {//其他物品都按点金分解价值
+            return { ask: itemDetail.sellPrice * 5 * 0.7, bid: itemDetail.sellPrice * 5 * 0.7, time: Date.now() / 1000 };//铁牛模式显示物品价值使用点金价格*几率
           }
 
           return null;
@@ -2190,7 +2192,7 @@
     // 创建容器元素并设置样式和位置
     const container = document.createElement('div');
     container.style.border = "1px solid #ccc"; //边框样式
-    container.style.backgroundColor = config.bgcolor || "#000";
+    container.style.backgroundColor = "#282844";
     container.style.position = "fixed";
     container.style.zIndex = 10000;
     container.style.top = `${Math.max(0, Math.min(config.y || 0, window.innerHeight - 50))}px`; //距离顶部位置
@@ -2282,7 +2284,7 @@
     document.body.appendChild(container);
 
     const ctx = document.createElement('canvas');
-    ctx.id = "myChart";
+    ctx.id = "mooChart";
     container.appendChild(ctx);
 
 
@@ -2332,12 +2334,13 @@
     //添加一个btn隐藏canvas和wrapper
     let btn_close = document.createElement('input');
     btn_close.type = 'button';
+    btn_close.classList.add('Button_button__1Fe9z')
     btn_close.value = '📈隐藏';
     btn_close.style.margin = 0;
     btn_close.style.cursor = 'pointer';
 
     leftContainer.appendChild(btn_close);
-
+/*
     let picker = document.createElement('input');
     picker.type = 'color';
     picker.style.cursor = 'pointer';
@@ -2351,7 +2354,7 @@
       save_config();
     }
     wrapper.appendChild(picker);
-
+*/
 
 
     //一个固定的文本显示买入卖出历史价格
@@ -2412,13 +2415,7 @@
       type: 'line',
       data: {
         labels: [],
-        datasets: [{
-          label: '市场',
-          data: [],
-          backgroundColor: 'rgba(255,99,132,0.2)',
-          borderColor: 'rgba(255,99,132,1)',
-          borderWidth: 1
-        }]
+        datasets: []
       },
       options: {
         onClick: save_config,
@@ -2427,24 +2424,61 @@
         pointRadius: 0,
         pointHitRadius: 20,
         scales: {
+          x: {
+            type: 'time',
+            time: {
+              displayFormats: {
+                hour: 'HH:mm',
+                day: 'MM/dd'
+              }
+            },
+            title: {
+              display: false
+            },
+            grid: {
+              color: "rgba(255,255,255,0.2)"
+            },
+            ticks: {
+              color: "#e7e7e7"
+            }
+          },
           y: {
             beginAtZero: false,
+            title: {
+              display: false,
+              color: "white",
+            },
+            grid: {
+              color: "rgba(255,255,255,0.2)",
+            },
             ticks: {
+              color: "#e7e7e7",
               // 自定义刻度标签格式化
               callback: showNumber
             }
           }
         },
         plugins: {
+          tooltip: { mode: 'index', intersect: false, bodyColor: "#e7e7e7", titleColor: "#e7e7e7" },
+          crosshair: {
+            line: { color: '#AAAAAA', width: 1 },
+            zoom: { enabled: false }
+          },
           title: {
             display: true,
             text: "",
-            color: "cornflowerblue",
+            color: "#e7e7e7",
             font: {
               size: 15,
               weight: 'bold',
             }
-          }
+          },
+          legend: {
+            display: true,
+            labels: {
+              color: "#e7e7e7"
+            }
+          },
         }
       }
     });
@@ -2457,8 +2491,7 @@
       curLevel = level;
       cur_day = day;
 
-      curShowItemName = mwi.isZh ?
-        mwi.lang.zh.translation.itemNames[itemHridName] : mwi.lang.en.translation.itemNames[itemHridName];
+      curShowItemName = mwi.lang.zh.translation.itemNames[itemHridName] + "/" + mwi.lang.en.translation.itemNames[itemHridName];
       curShowItemName += curLevel > 0 ? "+" + curLevel : "";
 
       let time = day * 3600 * 24;
@@ -2557,11 +2590,11 @@
       let enhancementLevel = document.querySelector(".MarketplacePanel_infoContainer__2mCnh .Item_enhancementLevel__19g-e")?.textContent.replace("+", "") || "0";
       let tradeName = curHridName + "_" + parseInt(enhancementLevel);
       if (trade_history[tradeName]) {
-        let buy = trade_history[tradeName].buy || "none";
-        let sell = trade_history[tradeName].sell || "none";
+        let buy = trade_history[tradeName].buy || "无记录";
+        let sell = trade_history[tradeName].sell || "无记录";
         price_info.style.display = "inline-block";
         let levelStr = enhancementLevel > 0 ? "(+" + enhancementLevel + ")" : "";
-        price_info.innerHTML = `<span style="color:red">${showNumber(buy)}</span>/<span style="color:green">${showNumber(sell)}</span>${levelStr}`;
+        price_info.innerHTML = `<span style="color:red">${showNumber(buy)}</span><span style="color:#AAAAAA">/</span><span style="color:lime">${showNumber(sell)}</span>${levelStr}`;
         container.style.minWidth = price_info.clientWidth + 70 + "px";
 
       } else {
@@ -2569,8 +2602,7 @@
         container.style.minWidth = "68px";
       }
 
-      let labels = data.bid.map(x => formatTime(x.time, day));
-
+      const labels = data.bid.map(x => new Date(x.time * 1000));
       chart.data.labels = labels;
 
       let sma = [];
@@ -2581,7 +2613,7 @@
         if (sma_window.length > sma_size) sma_window.shift();
         sma.push(sma_window.reduce((a, b) => a + b, 0) / sma_window.length);
       }
-      chart.options.plugins.title.text = curShowItemName
+      chart.options.plugins.title.text = curShowItemName;
       chart.data.datasets = [
         {
           label: mwi.isZh ? '买一' : "bid1",
@@ -2604,8 +2636,21 @@
           borderWidth: 3,
           tension: 0.5,
           fill: true
-        }
+        },
+
       ];
+      let timeUnit, timeFormat;
+      if (day <= 3) {
+        timeUnit = 'hour';
+        timeFormat = 'HH:mm';
+      } else {
+        timeUnit = 'day';
+        timeFormat = 'MM/dd';
+      }
+      chart.options.scales.x.time.unit = timeUnit;
+      chart.options.scales.x.time.tooltipFormat = timeFormat;
+
+
       chart.setDatasetVisibility(0, config.filter.ask);
       chart.setDatasetVisibility(1, config.filter.bid);
       chart.setDatasetVisibility(2, config.filter.mean);
