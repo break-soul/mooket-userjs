@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250427.4.4
+// @version      20250427.4.5
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -2492,7 +2492,7 @@
       cur_day = day;
 
       curShowItemName = mwi.lang.zh.translation.itemNames[itemHridName] + "/" + mwi.lang.en.translation.itemNames[itemHridName];
-      curShowItemName += curLevel > 0 ? "+" + curLevel : "";
+      curShowItemName += curLevel > 0 ? `(+${curLevel})` : "";
 
       let time = day * 3600 * 24;
       //const HOST = "https://mooket.qi-e.top";上面定义了
