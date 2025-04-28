@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250427.4.6
+// @version      20250427.4.7
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -2340,21 +2340,21 @@
     btn_close.style.cursor = 'pointer';
 
     leftContainer.appendChild(btn_close);
-/*
-    let picker = document.createElement('input');
-    picker.type = 'color';
-    picker.style.cursor = 'pointer';
-    picker.style.width = '20px';
-    picker.style.height = '20px';
-    picker.style.padding = "0"
-    picker.style.verticalAlign = "middle"
-    picker.onchange = function () {
-      container.style.backgroundColor = this.value;
-      config.bgcolor = this.value;
-      save_config();
-    }
-    wrapper.appendChild(picker);
-*/
+    /*
+        let picker = document.createElement('input');
+        picker.type = 'color';
+        picker.style.cursor = 'pointer';
+        picker.style.width = '20px';
+        picker.style.height = '20px';
+        picker.style.padding = "0"
+        picker.style.verticalAlign = "middle"
+        picker.onchange = function () {
+          container.style.backgroundColor = this.value;
+          config.bgcolor = this.value;
+          save_config();
+        }
+        wrapper.appendChild(picker);
+    */
 
 
     //一个固定的文本显示买入卖出历史价格
@@ -2491,7 +2491,7 @@
       curLevel = level;
       cur_day = day;
 
-      curShowItemName = mwi.lang.zh.translation.itemNames[itemHridName] + "/" + mwi.lang.en.translation.itemNames[itemHridName];
+      curShowItemName = mwi.isZh ? mwi.lang.zh.translation.itemNames[itemHridName] : mwi.lang.en.translation.itemNames[itemHridName];
       curShowItemName += curLevel > 0 ? `(+${curLevel})` : "";
 
       let time = day * 3600 * 24;
