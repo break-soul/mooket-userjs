@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250427.4.5
+// @version      20250427.4.6
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -2593,7 +2593,7 @@
         let buy = trade_history[tradeName].buy || "无记录";
         let sell = trade_history[tradeName].sell || "无记录";
         price_info.style.display = "inline-block";
-        let levelStr = enhancementLevel > 0 ? "(+" + enhancementLevel + ")" : "";
+        let levelStr = enhancementLevel > 0 ? `<span style="color:orange">(+${enhancementLevel})</span>` : "";
         price_info.innerHTML = `<span style="color:red">${showNumber(buy)}</span><span style="color:#AAAAAA">/</span><span style="color:lime">${showNumber(sell)}</span>${levelStr}`;
         container.style.minWidth = price_info.clientWidth + 70 + "px";
 
