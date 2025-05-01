@@ -39,7 +39,7 @@
 
     ///不需要等待加载的
 
-    get isZh() { return localStorage.getItem("i18nextLng")?.startsWith("zh"); },//是否中文
+    get isZh() { return isZh() },//是否中文
     /* marketJson兼容接口 */
     get marketJson() {
       return this.MWICoreInitialized && new Proxy(this.coreMarket, {
@@ -75,6 +75,13 @@
   };
   window[injectSpace] = mwi;
 
+  let cachedLang=localStorage.getItem("i18nextLng");
+  let cachedLangTimer=null;
+  function isZh(){
+    clearTimeout(cachedLangTimer);
+    cachedLangTimer = setTimeout(()=>{cachedLang=localStorage.getItem("i18nextLng");},1000);
+    return cachedLang?.startsWith("zh");
+  }
   async function patchScript(node) {
     try {
       const scriptUrl = node.src;
