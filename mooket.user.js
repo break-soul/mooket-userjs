@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250427.4.7
+// @version      20250501.4.7
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -1999,8 +1999,9 @@
       });
       obj.time = timestamp;//添加时间戳
       //上报数据
+      if (!upload) return;//不走上报逻辑，只在收到游戏服务器数据时上报
+
       if (this.trade_ws) {//标准模式走ws
-        if (!upload) return;//只在game收到消息的时候上报
         this.trade_ws.send(JSON.stringify(obj));//ws上报
       } else {//铁牛上报
         fetchWithTimeout(`${HOST}/market/upload/order`, {
