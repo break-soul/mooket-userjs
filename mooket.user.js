@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250501.4.7
+// @version      20250504.5.0
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -22,7 +22,7 @@
   let mwi = {//供外部调用的接口
     //由于脚本加载问题，注入有可能失败
     //修改了hookCallback，添加了回调前和回调后处理
-    version: "0.4.0",//版本号，未改动原有接口只更新最后一个版本号，更改了接口会更改次版本号，主版本暂时不更新，等稳定之后再考虑主版本号更新
+    version: "0.5.0",//版本号，未改动原有接口只更新最后一个版本号，更改了接口会更改次版本号，主版本暂时不更新，等稳定之后再考虑主版本号更新
     MWICoreInitialized: false,//是否初始化完成，完成会还会通过window发送一个自定义事件 MWICoreInitialized
     game: null,//注入游戏对象，可以直接访问游戏中的大量数据和方法以及消息事件等
     lang: null,//语言翻译, 例如中文物品lang.zh.translation.itemNames['/items/coin']
@@ -39,7 +39,7 @@
 
     ///不需要等待加载的
 
-    get isZh() { return isZh() },//是否中文
+    get isZh() { return cacheZh() },//是否中文
     /* marketJson兼容接口 */
     get marketJson() {
       return this.MWICoreInitialized && new Proxy(this.coreMarket, {
@@ -75,11 +75,11 @@
   };
   window[injectSpace] = mwi;
 
-  let cachedLang=localStorage.getItem("i18nextLng");
-  let cachedLangTimer=null;
-  function isZh(){
+  let cachedLang = localStorage.getItem("i18nextLng");
+  let cachedLangTimer = null;
+  function cacheZh() {
     clearTimeout(cachedLangTimer);
-    cachedLangTimer = setTimeout(()=>{cachedLang=localStorage.getItem("i18nextLng");},1000);
+    cachedLangTimer = setTimeout(() => { cachedLang = localStorage.getItem("i18nextLng"); }, 1000);
     return cachedLang?.startsWith("zh");
   }
   async function patchScript(node) {
@@ -1947,6 +1947,7 @@
     fetchTimeDict = {};//记录上次API请求时间，防止频繁请求
     ttl = 300;//缓存时间，单位秒
     trade_ws = null;
+    subItems = [];
     constructor() {
       //core data
       let marketDataStr = localStorage.getItem("MWICore_marketData") || "{}";
@@ -1976,6 +1977,7 @@
         if (msg.character.gameMode === "standard") {//标准模式才连接ws服务器，铁牛模式不连接ws服务器)
           if (!this.trade_ws) {
             this.trade_ws = new ReconnectWebSocket(`${HOST}/market/ws`);
+            this.trade_ws.onOpen = this.onWebsocketConnected;
             this.trade_ws.onMessage = (data) => {
               if (data === "ping") { return; }//心跳包，忽略
               let obj = JSON.parse(data);
@@ -2020,6 +2022,15 @@
         });
       }
     }
+    onWebsocketConnected() {
+      if (this.subItems?.length > 0) {//订阅物品列表
+        this.trade_ws?.send(JSON.stringify({ type: "SubscribeItems", items: this.subItems }));
+      }
+    }
+    subscribeItems(itemHridList) {//订阅物品列表，只在游戏服务器上报
+      this.subItems = itemHridList;
+      this.trade_ws?.send(JSON.stringify({ type: "SubscribeItems", items: itemHridList }));
+    }
     /**
      * 合并MWIAPI数据，只包含0级物品
      *
@@ -2040,6 +2051,7 @@
       //不保存，只合并
     }
     save() {//保存到localStorage
+      if (mwi.character?.gameMode !== "standard") return;//非标准模式不保存
       this.mergeCoreDataBeforeSave();//从其他角色合并保存的数据
       localStorage.setItem("MWICore_marketData", JSON.stringify(this.marketData));
     }
@@ -2062,7 +2074,7 @@
         case "/items/task_crystal": {//固定点金收益5000，这里计算可能有bug
           return { bid: 5000, ask: 5000, time: Date.now() / 1000 }
         }
-        default:
+        default: {
           let itemDetail = mwi.getItemDetail(itemHrid);
           if (itemDetail?.categoryHrid === "/item_categories/loot") {//宝箱陨石
             let totalAsk = 0;
@@ -2082,6 +2094,7 @@
           }
 
           return null;
+        }
       }
     }
     getOpenableItems(itemHrid) {
@@ -2104,6 +2117,11 @@
      * @returns {number|null} 返回商品的价格，如果商品不存在或无法获取价格则返回null
      */
     getItemPrice(itemHridOrName, enhancementLevel = 0, peek = false) {
+      if (itemHridOrName?.includes(":")) {//兼容单名称，例如"itemHrid:enhancementLevel"
+        let arr = itemHridOrName.split(":");
+        itemHridOrName = arr[0];
+        enhancementLevel = parseInt(arr[1]);
+      }
       let itemHrid = mwi.ensureItemHrid(itemHridOrName);
       if (!itemHrid) return null;
       let specialPrice = this.getSpecialPrice(itemHrid);
@@ -2136,7 +2154,7 @@
           if (oriPrice != 0) risePercent = newPrice / oriPrice - 1;
         }
         this.marketData[itemHridLevel] = { rise: risePercent, ask: priceObj.ask, bid: priceObj.bid, time: priceObj.time };//更新本地数据
-        dispatchEvent(new CustomEvent("MWICoreItemPriceUpdated"), priceObj);//触发事件
+        dispatchEvent(new CustomEvent("MWICoreItemPriceUpdated", { detail: { priceObj: priceObj, itemHridLevel: itemHridLevel } }));//触发事件
       }
     }
     resetRise() {
@@ -2155,7 +2173,7 @@
     mwi.hookMessage("market_listings_updated", obj => {
       obj.endMarketListings.forEach(order => {
         if (order.filledQuantity == 0) return;//没有成交的订单不记录
-        let key = order.itemHrid + "_" + order.enhancementLevel;
+        let key = order.itemHrid + ":" + order.enhancementLevel;
 
         let tradeItem = trade_history[key] || {}
         if (order.isSell) {
@@ -2170,7 +2188,7 @@
       }
     });
 
-    let trade_history = JSON.parse(localStorage.getItem("mooket_trade_history") || "{}");
+
 
     let cur_day = 1;
     let curHridName = null;
@@ -2180,8 +2198,28 @@
     let chartHeight = 280
 
     let configStr = localStorage.getItem("mooket_config");
-    let config = configStr ? JSON.parse(configStr) : { "dayIndex": 0, "visible": true, "filter": { "bid": true, "ask": true, "mean": true } };
+    let config = configStr ? JSON.parse(configStr) : { "dayIndex": 0, "visible": true, "filter": { "bid": true, "ask": true, "mean": true }, "favo": {} };
+    config.favo = config.favo || {};
     cur_day = config.day;//读取设置
+
+    let trade_history = JSON.parse(localStorage.getItem("mooket_trade_history") || "{}");
+    function trade_history_migrate() {
+      if (config?.version > 1) return;
+      //把trade_history的key从itemHrid_enhancementLevel改为itemHrid:enhancementLevel
+      let new_trade_history = {};
+      for (let oldKey in trade_history) {
+        if (/_(\d+)/.test(oldKey)) {
+          let newKey = oldKey.replace(/_(\d+)/, ":$1");
+          new_trade_history[newKey] = trade_history[oldKey];
+        } else {
+
+        }
+      }
+      localStorage.setItem("mooket_trade_history", JSON.stringify(new_trade_history));//保存挂单数据
+      trade_history = new_trade_history;
+      config.version = 1.1;
+    }
+    trade_history_migrate();
 
     window.onresize = function () {
       checkSize();
@@ -2199,7 +2237,8 @@
 
     // 创建容器元素并设置样式和位置
     const container = document.createElement('div');
-    container.style.border = "1px solid #ccc"; //边框样式
+    //container.style.border = "1px solid #ccc"; //边框样式
+    container.style.border="1px solid #90a6eb"; //边框样式
     container.style.backgroundColor = "#282844";
     container.style.position = "fixed";
     container.style.zIndex = 10000;
@@ -2331,6 +2370,15 @@
 
     wrapper.appendChild(select);
 
+    let btn_favo = document.createElement('input');
+    btn_favo.type = 'button';
+    //btn_favo.classList.add('Button_button__1Fe9z')
+    btn_favo.value = '📌';
+    btn_favo.style.position = "inline-block";
+    btn_favo.title = "添加到自选";
+    btn_favo.onclick = () => { if (curHridName) addFavo(curHridName + ":" + curLevel) };
+    wrapper.appendChild(btn_favo);
+
     // 创建一个容器元素并设置样式和位置
     const leftContainer = document.createElement('div');
     leftContainer.style.padding = '2px'
@@ -2369,7 +2417,7 @@
     let price_info = document.createElement('div');
 
     price_info.style.fontSize = '14px';
-    price_info.title = "我的最近买/卖价格"
+    price_info.title = mwi.isZh?"我的最近买/卖价格":"recently buy/sell price";
     price_info.style.width = "max-content";
     price_info.style.whiteSpace = "nowrap";
     price_info.style.lineHeight = '25px';
@@ -2385,22 +2433,139 @@
 
     leftContainer.appendChild(price_info);
 
+    //自选
+    let favoContainer = document.createElement('div');
+    favoContainer.style.fontSize = '14px';
+    favoContainer.style.width = "max-content";
+    favoContainer.style.whiteSpace = "nowrap";
+    favoContainer.style.display = 'block';
+    favoContainer.style.position = 'absolute';
+    favoContainer.style.top = '35px';
+
+    container.appendChild(favoContainer);
+
+    function sendFavo() {
+      let items = new Set();
+      Object.entries(config.favo || {}).forEach(([itemHridLevel, data]) => {
+        items.add(itemHridLevel.split(":")[0]);
+      });
+      mwi.coreMarket.subscribeItems(Array.from(items));
+      updateFavo();
+    }
+    function addFavo(itemHridLevel) {
+      let priceObj = mwi.coreMarket.getItemPrice(itemHridLevel);
+      config.favo[itemHridLevel] = { ask: priceObj.ask, bid: priceObj.bid, time: priceObj.time };
+      sendFavo();
+    }
+    function removeFavo(itemHridLevel) {
+      delete config.favo[itemHridLevel];
+      sendFavo();
+    }
+    function updateFavo() {
+      //在favoContainer中添加config.favo dict中 key对应的元素，或者删除不存在的
+      let items = Object.keys(config.favo);
+      for (let i = 0; i < favoContainer.children.length; i++) {
+        if (!items.includes(favoContainer.children[i].id)) {
+          favoContainer.removeChild(favoContainer.children[i]);
+        }
+      }
+      for (let itemHridLevel of items) {
+        let div = document.getElementById(itemHridLevel);
+
+        let oldPrice = config.favo[itemHridLevel];
+        let newPrice = mwi.coreMarket.getItemPrice(itemHridLevel);
+
+        oldPrice.ask = oldPrice?.ask > 0 ? oldPrice.ask : newPrice?.ask;//如果旧价格没有ask，就用新价格的ask代替
+        oldPrice.bid = oldPrice?.bid > 0 ? oldPrice.bid : newPrice?.bid;//如果旧价格没有bid，就用新价格的bid代替
+
+
+        let priceDelta = {
+          ask: newPrice?.ask > 0 ? showNumber(newPrice.ask) : "-",
+          bid: newPrice?.bid > 0 ? showNumber(newPrice.bid) : "-",
+          askRise: (oldPrice?.ask > 0 && newPrice?.ask > 0) ? (100 * (newPrice.ask - oldPrice.ask) / oldPrice.ask).toFixed(1) : 0,
+          bidRise: (oldPrice?.bid > 0 && newPrice?.bid > 0) ? (100 * (newPrice.bid - oldPrice.bid) / oldPrice.bid).toFixed(1) : 0,
+        };
+        let [itemHrid, level] = itemHridLevel.split(":");
+        let iconName = itemHrid.split("/")[2];
+        let itemName = mwi.isZh ? mwi.lang.zh.translation.itemNames[itemHrid] : mwi.lang.en.translation.itemNames[itemHrid];
+        let fullInfo = `
+            <div style="display:inline-block;border:1px solid #98a7e9;border-radius:4px;">
+            <svg width="14px" height="14px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
+            <span>${itemName}${level > 0 ? `(+${level})` : ""}</span>
+            </div>
+            <span style="color:${priceDelta.askRise == 0 ? "white" : priceDelta.askRise > 0 ? "red" : "lime"}">${priceDelta.ask}</span>
+            <span style="color:white;background-color:${priceDelta.askRise == 0 ? "black" : priceDelta.askRise > 0 ? "brown" : "green"}">${priceDelta.askRise > 0 ? "+" : ""}${priceDelta.askRise}%</span>
+            <span style="color:${priceDelta.bidRise == 0 ? "white" : priceDelta.bidRise > 0 ? "red" : "lime"}">${priceDelta.bid}</span>
+            <span style="color:white;background-color:${priceDelta.bidRise == 0 ? "black" : priceDelta.bidRise > 0 ? "brown" : "green"}">${priceDelta.bidRise}%</span>
+            `;
+        let simpleInfo = `
+            <div style="display:inline-block;border:1px solid #98a7e9;border-radius:4px;">
+            <svg width="14px" height="14px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
+            <span>${itemName}${level > 0 ? `(+${level})` : ""}</span>
+            </div>
+            <span style="color:white;background-color:${priceDelta.askRise == 0 ? "black" : priceDelta.askRise > 0 ? "brown" : "green"}">${priceDelta.askRise > 0 ? "+" : ""}${priceDelta.askRise}%</span>
+            `;
+
+        if (!div) {
+          div = document.createElement('div');
+          //div.style.border = '1px solid #90a6eb';
+          div.style.color = 'white';
+          //div.style.backgroundColor = '#282844';
+          div.title = "📈🖱❌";
+          div.onclick = function () {
+            let [itemHrid, level] = itemHridLevel.split(":")
+            requestItemPrice(itemHrid, cur_day, level);
+            toggleShow(true);
+          };
+          favoContainer.addEventListener("mouseenter", () => {
+            if (!div.isFullInfo) {
+              div.isFullInfo = true;
+              div.innerHTML = div.fullInfo;
+            }
+          });
+          favoContainer.addEventListener("mouseleave", () => {
+            if (div.isFullInfo) {
+              div.isFullInfo = false;
+              div.innerHTML = div.simpleInfo;
+            }
+          });
+          div.oncontextmenu = (event) => { event.preventDefault(); removeFavo(itemHridLevel); };
+          div.id = itemHridLevel;
+          favoContainer.appendChild(div);
+        }
+        div.simpleInfo = simpleInfo;
+        div.fullInfo = fullInfo;
+        //鼠标如果在div范围内就显示fullinfo
+        if (div.isFullInfo) div.innerHTML = fullInfo; else div.innerHTML = simpleInfo;
+      }
+    }
+
+    sendFavo();//初始化自选
+    addEventListener('MWICoreItemPriceUpdated', updateFavo);
+
     let lastWidth;
     let lastHeight;
     btn_close.onclick = toggle;
     function toggle() {
-      if (wrapper.style.display === 'none') {
+
+      if (wrapper.style.display === 'none') {//展开
         wrapper.style.display = ctx.style.display = 'block';
         container.style.resize = "both";
-        btn_close.value = '📈隐藏';
+        btn_close.value = '📈'+(mwi.isZh?"隐藏":"Hide");
         leftContainer.style.position = 'absolute'
         leftContainer.style.top = '1px';
         leftContainer.style.left = '1px';
         container.style.width = lastWidth;
         container.style.height = lastHeight;
         config.visible = true;
+        favoContainer.style.top = "35px";
+        favoContainer.style.right = 0;
+        favoContainer.style.left = null;
+        favoContainer.style.position = 'absolute';
+        favoContainer.style.cursor = 'pointer';
+
         save_config();
-      } else {
+      } else {//隐藏
         lastWidth = container.style.width;
         lastHeight = container.style.height;
         wrapper.style.display = ctx.style.display = 'none';
@@ -2408,17 +2573,23 @@
         container.style.width = "auto";
         container.style.height = "auto";
 
-
-        btn_close.value = '📈显示';
+        btn_close.value = '📈'+(mwi.isZh?"显示":"Show");
         leftContainer.style.position = 'relative'
         leftContainer.style.top = 0;
         leftContainer.style.left = 0;
-
+        favoContainer.style.top = 0;
+        favoContainer.style.left = 0;
+        favoContainer.style.right = null;
+        favoContainer.style.position = 'relative'
         config.visible = false;
         save_config();
       }
     };
-
+    function toggleShow(show=true){
+      if((wrapper.style.display !== 'none') !== show){
+        toggle()
+      }
+    }
     let chart = new Chart(ctx, {
       type: 'line',
       data: {
@@ -2596,13 +2767,16 @@
 
       //显示历史价格
       let enhancementLevel = document.querySelector(".MarketplacePanel_infoContainer__2mCnh .Item_enhancementLevel__19g-e")?.textContent.replace("+", "") || "0";
-      let tradeName = curHridName + "_" + parseInt(enhancementLevel);
+      let tradeName = curHridName + ":" + parseInt(enhancementLevel);
       if (trade_history[tradeName]) {
-        let buy = trade_history[tradeName].buy || "无记录";
-        let sell = trade_history[tradeName].sell || "无记录";
+        let buy = trade_history[tradeName].buy || "--";
+        let sell = trade_history[tradeName].sell || "--";
         price_info.style.display = "inline-block";
         let levelStr = enhancementLevel > 0 ? `<span style="color:orange">(+${enhancementLevel})</span>` : "";
-        price_info.innerHTML = `<span style="color:red">${showNumber(buy)}</span><span style="color:#AAAAAA">/</span><span style="color:lime">${showNumber(sell)}</span>${levelStr}`;
+        price_info.innerHTML = `
+        <span style="color:red">${showNumber(buy)}</span>
+        <span style="color:#AAAAAA">/</span>
+        <span style="color:lime">${showNumber(sell)}</span>${levelStr}`;
         container.style.minWidth = price_info.clientWidth + 70 + "px";
 
       } else {
@@ -2666,6 +2840,7 @@
       chart.update()
     }
     function save_config() {
+      if (mwi.character?.gameMode !== "standard") return;//铁牛不保存
 
       if (chart && chart.data && chart.data.datasets && chart.data.datasets.length == 3) {
         config.filter.ask = chart.getDatasetMeta(0).visible;
@@ -2681,14 +2856,21 @@
 
       localStorage.setItem("mooket_config", JSON.stringify(config));
     }
+    let requestItemHridLevel = null;
     setInterval(() => {
-      if (document.querySelector(".MarketplacePanel_marketplacePanel__21b7o")?.checkVisibility()) {
+      let inMarketplace = document.querySelector(".MarketplacePanel_marketplacePanel__21b7o")?.checkVisibility();
+      let hasFavo = Object.entries(config.favo || {}).length > 0;
+      if (inMarketplace || hasFavo) {
         container.style.display = "block"
         try {
           let currentItem = document.querySelector(".MarketplacePanel_currentItem__3ercC");
-          let level = currentItem?.querySelector(".Item_enhancementLevel__19g-e");
+          let levelStr = currentItem?.querySelector(".Item_enhancementLevel__19g-e");
+          let level = parseInt(levelStr?.textContent.replace("+", "") || "0");
           let itemHrid = mwi.ensureItemHrid(currentItem?.querySelector(".Icon_icon__2LtL_")?.ariaLabel);
-          requestItemPrice(itemHrid, cur_day, parseInt(level?.textContent.replace("+", "") || "0"))
+          if (requestItemHridLevel !== itemHrid + ":" + level) {//避免重复请求  
+            requestItemHridLevel = itemHrid + ":" + level;
+            requestItemPrice(itemHrid, cur_day, level);
+          }
         } catch (e) {
           console.error(e)
         }
@@ -2705,7 +2887,7 @@
     const interval = setInterval(() => {
       count++;
       if (count > 30) { clearInterval(interval) }//最多等待30秒
-      if (document.body) {//等待必须组件加载完毕后再初始化
+      if (document.body && mwi.character?.gameMode) {//等待必须组件加载完毕后再初始化
         clearInterval(interval);
         resolve();
       }
