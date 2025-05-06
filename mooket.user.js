@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250504.5.0
+// @version      20250504.5.1
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -19,6 +19,21 @@
   'use strict';
   let injectSpace = "mwi";//use window.mwi to access the injected object
   if (window[injectSpace]) return;//已经注入
+  //优先注册ob
+  new MutationObserver((mutationsList, obs) => {
+    mutationsList.forEach((mutationRecord) => {
+      for (const node of mutationRecord.addedNodes) {
+        if (node.src) {
+          console.log(node.src);
+          if (node.src.search(/.*main\..*\.chunk.js/) === 0) {
+            console.info("patching:" + node.src)
+            obs.disconnect();
+            patchScript(node);
+          }
+        }
+      }
+    });
+  }).observe(document, { childList: true, subtree: true });
   let mwi = {//供外部调用的接口
     //由于脚本加载问题，注入有可能失败
     //修改了hookCallback，添加了回调前和回调后处理
@@ -34,15 +49,15 @@
 
     coreMarket: null,//coreMarket.marketData 格式{"/items/apple_yogurt:0":{ask,bid,time}}
     initCharacterData: null,
-    initClientData: JSON.parse(localStorage.getItem("initClientData") || "{}"),
+    initClientData: null,
     get character() { return this.game?.state?.character || this.initCharacterData?.character },
 
     ///不需要等待加载的
 
-    get isZh() { return cacheZh() },//是否中文
+    isZh:true,//是否中文
     /* marketJson兼容接口 */
     get marketJson() {
-      return this.MWICoreInitialized && new Proxy(this.coreMarket, {
+      return this.coreMarket && new Proxy(this.coreMarket, {
         get(coreMarket, prop) {
           if (prop === "market") {
             return new Proxy(coreMarket, {
@@ -75,13 +90,25 @@
   };
   window[injectSpace] = mwi;
 
-  let cachedLang = localStorage.getItem("i18nextLng");
-  let cachedLangTimer = null;
-  function cacheZh() {
-    clearTimeout(cachedLangTimer);
-    cachedLangTimer = setTimeout(() => { cachedLang = localStorage.getItem("i18nextLng"); }, 1000);
-    return cachedLang?.startsWith("zh");
-  }
+  mwi.initClientData = JSON.parse(localStorage.getItem("initClientData") || "{}");
+  mwi.isZh = localStorage.getItem("i18nextLng")?.startsWith("zh");
+
+  const originalSetItem = localStorage.setItem;
+  localStorage.setItem = function (key, value) {
+    const event = new Event('localStorageChanged');
+    event.key = key;
+    event.newValue = value;
+    event.oldValue = localStorage.getItem(key);
+    document.dispatchEvent(event);
+    originalSetItem.apply(this, arguments);
+  };
+
+  document.addEventListener('localStorageChanged', function (event) {
+    if (event.key === "i18nextLng") {
+      console.log(`i18nextLng changed: ${event.key} = ${event.newValue}`);
+      mwi.isZh = event.newValue?.startsWith("zh");
+    }
+  });
   async function patchScript(node) {
     try {
       const scriptUrl = node.src;
@@ -138,19 +165,7 @@
       console.error('MWICore patching failed:', error);
     }
   }
-  new MutationObserver((mutationsList, obs) => {
-    mutationsList.forEach((mutationRecord) => {
-      for (const node of mutationRecord.addedNodes) {
-        if (node.src) {
-          if (node.src.search(/.*main\..*\.chunk.js/) === 0) {
-            console.info("patching:" + node.src)
-            obs.disconnect();
-            patchScript(node);
-          }
-        }
-      }
-    });
-  }).observe(document, { childList: true, subtree: true });
+  
 
   function hookWS() {
     const dataProperty = Object.getOwnPropertyDescriptor(MessageEvent.prototype, "data");
@@ -1820,7 +1835,8 @@
     Object.entries(mwi.lang.zh.translation.itemNames).forEach(([k, v]) => { mwi.itemNameToHridDict[v] = k });
 
     mwi.MWICoreInitialized = true;
-    window.dispatchEvent(new CustomEvent("MWICoreInitialized"))
+    mwi.game.updateNotifications("info","MWICore已加载");
+    window.dispatchEvent(new CustomEvent("MWICoreInitialized"));
     console.info("MWICoreInitialized");
   }
   staticInit();
@@ -1828,7 +1844,10 @@
     let count = 0;
     const interval = setInterval(() => {
       count++;
-      if (count > 30) { clearInterval(interval) }//最多等待30秒
+      if (count > 30) { 
+        console.error("injecting failed，部分功能收到影响，请刷新重试");
+        clearInterval(interval) 
+      }//最多等待30秒
       if (mwi.game && mwi.lang && mwi?.game?.state?.character?.gameMode) {//等待必须组件加载完毕后再初始化
         clearInterval(interval);
         resolve();
@@ -1969,7 +1988,7 @@
             localStorage.setItem("MWIAPI_JSON", mwiapiJsonStr);//更新本地缓存数据
             console.info("MWIAPI_JSON updated:", new Date(mwiapiObj.time * 1000).toLocaleString());
           })
-        });
+        }).catch(err => {console.warn("MWIAPI_JSON update failed,using localdata");});
       }
       //市场数据更新
       hookMessage("market_item_order_books_updated", obj => this.handleMessageMarketItemOrderBooksUpdated(obj, true));
@@ -1977,7 +1996,7 @@
         if (msg.character.gameMode === "standard") {//标准模式才连接ws服务器，铁牛模式不连接ws服务器)
           if (!this.trade_ws) {
             this.trade_ws = new ReconnectWebSocket(`${HOST}/market/ws`);
-            this.trade_ws.onOpen = this.onWebsocketConnected;
+            this.trade_ws.onOpen = () => this.onWebsocketConnected();
             this.trade_ws.onMessage = (data) => {
               if (data === "ping") { return; }//心跳包，忽略
               let obj = JSON.parse(data);
@@ -2238,7 +2257,7 @@
     // 创建容器元素并设置样式和位置
     const container = document.createElement('div');
     //container.style.border = "1px solid #ccc"; //边框样式
-    container.style.border="1px solid #90a6eb"; //边框样式
+    container.style.border = "1px solid #90a6eb"; //边框样式
     container.style.backgroundColor = "#282844";
     container.style.position = "fixed";
     container.style.zIndex = 10000;
@@ -2417,7 +2436,7 @@
     let price_info = document.createElement('div');
 
     price_info.style.fontSize = '14px';
-    price_info.title = mwi.isZh?"我的最近买/卖价格":"recently buy/sell price";
+    price_info.title = mwi.isZh ? "我的最近买/卖价格" : "recently buy/sell price";
     price_info.style.width = "max-content";
     price_info.style.whiteSpace = "nowrap";
     price_info.style.lineHeight = '25px';
@@ -2496,12 +2515,11 @@
             <span style="color:${priceDelta.askRise == 0 ? "white" : priceDelta.askRise > 0 ? "red" : "lime"}">${priceDelta.ask}</span>
             <span style="color:white;background-color:${priceDelta.askRise == 0 ? "black" : priceDelta.askRise > 0 ? "brown" : "green"}">${priceDelta.askRise > 0 ? "+" : ""}${priceDelta.askRise}%</span>
             <span style="color:${priceDelta.bidRise == 0 ? "white" : priceDelta.bidRise > 0 ? "red" : "lime"}">${priceDelta.bid}</span>
-            <span style="color:white;background-color:${priceDelta.bidRise == 0 ? "black" : priceDelta.bidRise > 0 ? "brown" : "green"}">${priceDelta.bidRise}%</span>
+            <span style="color:white;background-color:${priceDelta.bidRise == 0 ? "black" : priceDelta.bidRise > 0 ? "brown" : "green"}">${priceDelta.bidRise > 0 ? "+" : ""}${priceDelta.bidRise}%</span>
             `;
         let simpleInfo = `
             <div style="display:inline-block;border:1px solid #98a7e9;border-radius:4px;">
             <svg width="14px" height="14px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
-            <span>${itemName}${level > 0 ? `(+${level})` : ""}</span>
             </div>
             <span style="color:white;background-color:${priceDelta.askRise == 0 ? "black" : priceDelta.askRise > 0 ? "brown" : "green"}">${priceDelta.askRise > 0 ? "+" : ""}${priceDelta.askRise}%</span>
             `;
@@ -2551,7 +2569,7 @@
       if (wrapper.style.display === 'none') {//展开
         wrapper.style.display = ctx.style.display = 'block';
         container.style.resize = "both";
-        btn_close.value = '📈'+(mwi.isZh?"隐藏":"Hide");
+        btn_close.value = '📈' + (mwi.isZh ? "隐藏" : "Hide");
         leftContainer.style.position = 'absolute'
         leftContainer.style.top = '1px';
         leftContainer.style.left = '1px';
@@ -2573,7 +2591,7 @@
         container.style.width = "auto";
         container.style.height = "auto";
 
-        btn_close.value = '📈'+(mwi.isZh?"显示":"Show");
+        btn_close.value = '📈' + (mwi.isZh ? "显示" : "Show");
         leftContainer.style.position = 'relative'
         leftContainer.style.top = 0;
         leftContainer.style.left = 0;
@@ -2585,8 +2603,8 @@
         save_config();
       }
     };
-    function toggleShow(show=true){
-      if((wrapper.style.display !== 'none') !== show){
+    function toggleShow(show = true) {
+      if ((wrapper.style.display !== 'none') !== show) {
         toggle()
       }
     }
@@ -2849,6 +2867,7 @@
       }
       config.x = Math.max(0, Math.min(container.getBoundingClientRect().x, window.innerWidth - 50));
       config.y = Math.max(0, Math.min(container.getBoundingClientRect().y, window.innerHeight - 50));
+      console.log("config:",config.x,config.y);
       if (container.style.width != "auto") {
         config.w = container.clientWidth;
         config.h = container.clientHeight;
