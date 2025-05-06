@@ -1941,13 +1941,18 @@
         console.error('Max reconnection attempts reached');
       }
     }
+    warnTimer= null; // 警告定时器
+
 
     // 发送消息
     send(data) {
       if (this.ws.readyState === WebSocket.OPEN) {
         this.ws.send(data);
       } else {
-        console.warn('WebMooket is not open');
+        clearTimeout(warnTimer);
+        warnTimer = setTimeout(() => {
+          console.warn('WebMooket is not open');
+        }, 1000);
       }
     }
 
