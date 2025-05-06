@@ -1845,7 +1845,7 @@
     const interval = setInterval(() => {
       count++;
       if (count > 30) { 
-        console.error("injecting failed，部分功能收到影响，请刷新重试");
+        console.warn("injecting failed，部分功能可能受到影响，可以尝试刷新页面或者关闭网页重开");
         clearInterval(interval) 
       }//最多等待30秒
       if (mwi.game && mwi.lang && mwi?.game?.state?.character?.gameMode) {//等待必须组件加载完毕后再初始化
