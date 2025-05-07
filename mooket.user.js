@@ -2562,13 +2562,13 @@
             mwi.game?.handleGoToMarketplace(itemHrid, level);//打开市场
             toggleShow(true);
           };
-          favoContainer.addEventListener("mouseenter", () => {
+          favoContainer.addEventListener("pointerenter", () => {
             if (!div.isFullInfo) {
               div.isFullInfo = true;
               div.innerHTML = div.fullInfo;
             }
           });
-          favoContainer.addEventListener("mouseleave", () => {
+          favoContainer.addEventListener("pointerleave", () => {
             if (div.isFullInfo) {
               div.isFullInfo = false;
               div.innerHTML = div.simpleInfo;
