@@ -2407,7 +2407,7 @@
     let btn_auto = document.createElement('input');
     btn_auto.type = 'checkbox';
     btn_auto.style.cursor = 'pointer';
-    btn_auto.title = mwi.isZh?"市场外自动隐藏":"auto hide out of marketplace";
+    btn_auto.title = mwi.isZh?"在市场外隐藏":"hide when out of marketplace";
     btn_auto.checked = config.autoHide;
     btn_auto.onchange = function () {
       config.autoHide = this.checked;
