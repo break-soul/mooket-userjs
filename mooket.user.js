@@ -2499,6 +2499,8 @@
     favoContainer.style.flexWrap = 'wrap'
     favoContainer.style.position = 'absolute';
     favoContainer.style.top = '35px';
+    favoContainer.style.lineHeight="0px";
+    favoContainer.style.overflow = 'hidden';
 
     container.appendChild(favoContainer);
 
@@ -2618,7 +2620,7 @@
             div.innerHTML = iconInfo;
         }
         favoContainer.style.maxWidth = "min-content";
-        favoContainer.style.maxWidth = leftContainer.clientWidth+"px";
+        setTimeout(()=>{favoContainer.style.maxWidth = leftContainer.clientWidth+"px";},0);
       }
     }
 
