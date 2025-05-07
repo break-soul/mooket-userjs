@@ -2403,6 +2403,18 @@
     btn_favo.onclick = () => { if (curHridName) addFavo(curHridName + ":" + curLevel) };
     wrapper.appendChild(btn_favo);
 
+    //添加一个radio用于设置自动隐藏显示
+    let btn_auto = document.createElement('input');
+    btn_auto.type = 'checkbox';
+    btn_auto.style.cursor = 'pointer';
+    btn_auto.title = mwi.isZh?"市场外自动隐藏":"auto hide out of marketplace";
+    btn_auto.checked = config.autoHide;
+    btn_auto.onchange = function () {
+      config.autoHide = this.checked;
+      save_config();
+    }
+    wrapper.appendChild(btn_auto);
+
     // 创建一个容器元素并设置样式和位置
     const leftContainer = document.createElement('div');
     leftContainer.style.padding = '2px'
@@ -2893,7 +2905,7 @@
     setInterval(() => {
       let inMarketplace = document.querySelector(".MarketplacePanel_marketplacePanel__21b7o")?.checkVisibility();
       let hasFavo = Object.entries(config.favo || {}).length > 0;
-      if (inMarketplace || hasFavo) {
+      if ((inMarketplace || (!inMarketplace && !config.autoHide))) {
         container.style.display = "block"
         try {
           let currentItem = document.querySelector(".MarketplacePanel_currentItem__3ercC");
