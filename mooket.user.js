@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250507.5.2
+// @version      20250507.5.3
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -1835,7 +1835,7 @@
     Object.entries(mwi.lang.zh.translation.itemNames).forEach(([k, v]) => { mwi.itemNameToHridDict[v] = k });
 
     mwi.MWICoreInitialized = true;
-    mwi.game.updateNotifications("info", "mwi.game injected");
+    mwi.game.updateNotifications("info", mwi.isZh?"mooket加载成功":"mooket ready");
     window.dispatchEvent(new CustomEvent("MWICoreInitialized"));
     console.info("MWICoreInitialized");
   }
