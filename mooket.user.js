@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250507.5.1
+// @version      20250507.5.2
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -2470,6 +2470,7 @@
     container.appendChild(favoContainer);
 
     function sendFavo() {
+      if (mwi.character?.gameMode !== "standard")return;
       let items = new Set();
       Object.entries(config.favo || {}).forEach(([itemHridLevel, data]) => {
         items.add(itemHridLevel.split(":")[0]);
@@ -2478,15 +2479,22 @@
       updateFavo();
     }
     function addFavo(itemHridLevel) {
+      if (mwi.character?.gameMode !== "standard")return;
       let priceObj = mwi.coreMarket.getItemPrice(itemHridLevel);
       config.favo[itemHridLevel] = { ask: priceObj.ask, bid: priceObj.bid, time: priceObj.time };
       sendFavo();
     }
     function removeFavo(itemHridLevel) {
+      if (mwi.character?.gameMode !== "standard")return;
       delete config.favo[itemHridLevel];
       sendFavo();
     }
     function updateFavo() {
+      if (mwi.character?.gameMode !== "standard"){
+        favoContainer.style.display = 'none';
+        return;
+      }
+      favoContainer.style.display = 'flex';
       //在favoContainer中添加config.favo dict中 key对应的元素，或者删除不存在的
       let items = Object.keys(config.favo);
       for (let i = 0; i < favoContainer.children.length; i++) {
