@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250507.5.4
+// @version      20250507.5.5
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -1835,7 +1835,7 @@
     Object.entries(mwi.lang.zh.translation.itemNames).forEach(([k, v]) => { mwi.itemNameToHridDict[v] = k });
 
     mwi.MWICoreInitialized = true;
-    mwi.game.updateNotifications("info", mwi.isZh?"mooket加载成功":"mooket ready");
+    mwi.game.updateNotifications("info", mwi.isZh ? "mooket加载成功" : "mooket ready");
     window.dispatchEvent(new CustomEvent("MWICoreInitialized"));
     console.info("MWICoreInitialized");
   }
@@ -2407,7 +2407,7 @@
     let btn_auto = document.createElement('input');
     btn_auto.type = 'checkbox';
     btn_auto.style.cursor = 'pointer';
-    btn_auto.title = mwi.isZh?"在市场外隐藏":"hide when out of marketplace";
+    btn_auto.title = mwi.isZh ? "在市场外隐藏" : "hide when out of marketplace";
     btn_auto.checked = config.autoHide;
     btn_auto.onchange = function () {
       config.autoHide = this.checked;
@@ -2469,6 +2469,27 @@
 
     leftContainer.appendChild(price_info);
 
+    //添加一个按钮切换simpleInfo和fullInfo
+
+    let btn_switch = document.createElement('input');
+    btn_switch.type = 'button';
+    btn_switch.value = "👁";
+    btn_switch.title = mwi.isZh ? "切换自选显示模式" : "switch favo item show mode";
+    btn_switch.style.marginLeft = '5px';
+    btn_switch.style.cursor = 'pointer';
+    leftContainer.appendChild(btn_switch);
+    btn_switch.onclick = function () {
+      if (config.favoMode === "icon") {
+        config.favoMode = "simple";
+      } else if (config.favoMode === "simple") {
+        config.favoMode = "full";
+      } else {
+        config.favoMode = "icon";
+      }
+      updateFavo();
+      save_config();
+    };
+
     //自选
     let favoContainer = document.createElement('div');
     favoContainer.style.fontSize = '14px';
@@ -2482,7 +2503,7 @@
     container.appendChild(favoContainer);
 
     function sendFavo() {
-      if (mwi.character?.gameMode !== "standard")return;
+      if (mwi.character?.gameMode !== "standard") return;
       let items = new Set();
       Object.entries(config.favo || {}).forEach(([itemHridLevel, data]) => {
         items.add(itemHridLevel.split(":")[0]);
@@ -2491,18 +2512,18 @@
       updateFavo();
     }
     function addFavo(itemHridLevel) {
-      if (mwi.character?.gameMode !== "standard")return;
+      if (mwi.character?.gameMode !== "standard") return;
       let priceObj = mwi.coreMarket.getItemPrice(itemHridLevel);
       config.favo[itemHridLevel] = { ask: priceObj.ask, bid: priceObj.bid, time: priceObj.time };
       sendFavo();
     }
     function removeFavo(itemHridLevel) {
-      if (mwi.character?.gameMode !== "standard")return;
+      if (mwi.character?.gameMode !== "standard") return;
       delete config.favo[itemHridLevel];
       sendFavo();
     }
     function updateFavo() {
-      if (mwi.character?.gameMode !== "standard"){
+      if (mwi.character?.gameMode !== "standard") {
         favoContainer.style.display = 'none';
         return;
       }
@@ -2534,21 +2555,26 @@
         let iconName = itemHrid.split("/")[2];
         let itemName = mwi.isZh ? mwi.lang.zh.translation.itemNames[itemHrid] : mwi.lang.en.translation.itemNames[itemHrid];
         let fullInfo = `
-            <div style="display:inline-block;border:1px solid #98a7e9;border-radius:4px;">
+            <div title="${itemName}${level > 0 ? `(+${level})` : ""}" style="display:inline-block;border:1px solid #98a7e9;border-radius:4px;">
             <svg width="14px" height="14px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
             <span>${itemName}${level > 0 ? `(+${level})` : ""}</span>
-            </div>
             <span style="color:${priceDelta.askRise == 0 ? "white" : priceDelta.askRise > 0 ? "red" : "lime"}">${priceDelta.ask}</span>
             <span style="color:white;background-color:${priceDelta.askRise == 0 ? "transparent" : priceDelta.askRise > 0 ? "brown" : "green"}">${priceDelta.askRise > 0 ? "+" : ""}${priceDelta.askRise}%</span>
             <span style="color:${priceDelta.bidRise == 0 ? "white" : priceDelta.bidRise > 0 ? "red" : "lime"}">${priceDelta.bid}</span>
             <span style="color:white;background-color:${priceDelta.bidRise == 0 ? "transparent" : priceDelta.bidRise > 0 ? "brown" : "green"}">${priceDelta.bidRise > 0 ? "+" : ""}${priceDelta.bidRise}%</span>
+            </div>
             `;
         let simpleInfo = `
-            <div style="display:inline-block;border:1px solid #98a7e9;border-radius:4px;">
+            <div title="${itemName}${level > 0 ? `(+${level})` : ""}" style="display:inline-block;border:1px solid #98a7e9;border-radius:4px;">
             <svg width="14px" height="14px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
-            </div>
             <span style="color:white;background-color:${priceDelta.askRise == 0 ? "transparent" : priceDelta.askRise > 0 ? "brown" : "green"}">${priceDelta.askRise == 0 ? "" : priceDelta.askRise > 0 ? "+" + priceDelta.askRise + "%" : priceDelta.askRise + "%"}</span>
+            </div>
             `;
+        let iconInfo = `
+          <div title="${itemName}${level > 0 ? `(+${level})` : ""}" style="display:inline-block;border:1px solid #98a7e9;border-radius:4px;">
+          <svg width="14px" height="14px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
+          </div>
+          `;
 
         if (!div) {
           div = document.createElement('div');
@@ -2562,6 +2588,7 @@
             mwi.game?.handleGoToMarketplace(itemHrid, level);//打开市场
             toggleShow(true);
           };
+          /*
           favoContainer.addEventListener("pointerenter", () => {
             if (!div.isFullInfo) {
               div.isFullInfo = true;
@@ -2574,14 +2601,24 @@
               div.innerHTML = div.simpleInfo;
             }
           });
+          */
           div.oncontextmenu = (event) => { event.preventDefault(); removeFavo(itemHridLevel); };
           div.id = itemHridLevel;
           favoContainer.appendChild(div);
         }
-        div.simpleInfo = simpleInfo;
-        div.fullInfo = fullInfo;
         //鼠标如果在div范围内就显示fullinfo
-        if (div.isFullInfo) div.innerHTML = fullInfo; else div.innerHTML = simpleInfo;
+        switch (config.favoMode) {
+          case "full":
+            div.innerHTML = fullInfo;
+            break;
+          case "simple":
+            div.innerHTML = simpleInfo;
+            break;
+          default:
+            div.innerHTML = iconInfo;
+        }
+        favoContainer.style.maxWidth = "min-content";
+        favoContainer.style.maxWidth = leftContainer.clientWidth+"px";
       }
     }
 
