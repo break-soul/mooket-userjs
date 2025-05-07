@@ -54,7 +54,7 @@
 
     ///不需要等待加载的
 
-    isZh:true,//是否中文
+    isZh: true,//是否中文
     /* marketJson兼容接口 */
     get marketJson() {
       return this.coreMarket && new Proxy(this.coreMarket, {
@@ -165,7 +165,7 @@
       console.error('MWICore patching failed:', error);
     }
   }
-  
+
 
   function hookWS() {
     const dataProperty = Object.getOwnPropertyDescriptor(MessageEvent.prototype, "data");
@@ -1835,7 +1835,7 @@
     Object.entries(mwi.lang.zh.translation.itemNames).forEach(([k, v]) => { mwi.itemNameToHridDict[v] = k });
 
     mwi.MWICoreInitialized = true;
-    mwi.game.updateNotifications("info","MWICore已加载");
+    mwi.game.updateNotifications("info", "mwi.game injected");
     window.dispatchEvent(new CustomEvent("MWICoreInitialized"));
     console.info("MWICoreInitialized");
   }
@@ -1844,9 +1844,9 @@
     let count = 0;
     const interval = setInterval(() => {
       count++;
-      if (count > 30) { 
+      if (count > 30) {
         console.warn("injecting failed，部分功能可能受到影响，可以尝试刷新页面或者关闭网页重开");
-        clearInterval(interval) 
+        clearInterval(interval)
       }//最多等待30秒
       if (mwi.game && mwi.lang && mwi?.game?.state?.character?.gameMode) {//等待必须组件加载完毕后再初始化
         clearInterval(interval);
@@ -1941,7 +1941,7 @@
         console.error('Max reconnection attempts reached');
       }
     }
-    warnTimer= null; // 警告定时器
+    warnTimer = null; // 警告定时器
 
 
     // 发送消息
@@ -1949,8 +1949,8 @@
       if (this.ws.readyState === WebSocket.OPEN) {
         this.ws.send(data);
       } else {
-        clearTimeout(warnTimer);
-        warnTimer = setTimeout(() => {
+        clearTimeout(this.warnTimer);
+        this.warnTimer = setTimeout(() => {
           console.warn('WebMooket is not open');
         }, 1000);
       }
@@ -1993,7 +1993,7 @@
             localStorage.setItem("MWIAPI_JSON", mwiapiJsonStr);//更新本地缓存数据
             console.info("MWIAPI_JSON updated:", new Date(mwiapiObj.time * 1000).toLocaleString());
           })
-        }).catch(err => {console.warn("MWIAPI_JSON update failed,using localdata");});
+        }).catch(err => { console.warn("MWIAPI_JSON update failed,using localdata"); });
       }
       //市场数据更新
       hookMessage("market_item_order_books_updated", obj => this.handleMessageMarketItemOrderBooksUpdated(obj, true));
@@ -2460,9 +2460,10 @@
     //自选
     let favoContainer = document.createElement('div');
     favoContainer.style.fontSize = '14px';
-    favoContainer.style.width = "max-content";
-    favoContainer.style.whiteSpace = "nowrap";
-    favoContainer.style.display = 'block';
+    favoContainer.style.maxWidth = "200px";
+    favoContainer.style.minWidth = "min-content";
+    favoContainer.style.display = 'flex';
+    favoContainer.style.flexWrap = 'wrap'
     favoContainer.style.position = 'absolute';
     favoContainer.style.top = '35px';
 
@@ -2518,26 +2519,27 @@
             <span>${itemName}${level > 0 ? `(+${level})` : ""}</span>
             </div>
             <span style="color:${priceDelta.askRise == 0 ? "white" : priceDelta.askRise > 0 ? "red" : "lime"}">${priceDelta.ask}</span>
-            <span style="color:white;background-color:${priceDelta.askRise == 0 ? "black" : priceDelta.askRise > 0 ? "brown" : "green"}">${priceDelta.askRise > 0 ? "+" : ""}${priceDelta.askRise}%</span>
+            <span style="color:white;background-color:${priceDelta.askRise == 0 ? "transparent" : priceDelta.askRise > 0 ? "brown" : "green"}">${priceDelta.askRise > 0 ? "+" : ""}${priceDelta.askRise}%</span>
             <span style="color:${priceDelta.bidRise == 0 ? "white" : priceDelta.bidRise > 0 ? "red" : "lime"}">${priceDelta.bid}</span>
-            <span style="color:white;background-color:${priceDelta.bidRise == 0 ? "black" : priceDelta.bidRise > 0 ? "brown" : "green"}">${priceDelta.bidRise > 0 ? "+" : ""}${priceDelta.bidRise}%</span>
+            <span style="color:white;background-color:${priceDelta.bidRise == 0 ? "transparent" : priceDelta.bidRise > 0 ? "brown" : "green"}">${priceDelta.bidRise > 0 ? "+" : ""}${priceDelta.bidRise}%</span>
             `;
         let simpleInfo = `
             <div style="display:inline-block;border:1px solid #98a7e9;border-radius:4px;">
             <svg width="14px" height="14px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
             </div>
-            <span style="color:white;background-color:${priceDelta.askRise == 0 ? "black" : priceDelta.askRise > 0 ? "brown" : "green"}">${priceDelta.askRise > 0 ? "+" : ""}${priceDelta.askRise}%</span>
+            <span style="color:white;background-color:${priceDelta.askRise == 0 ? "transparent" : priceDelta.askRise > 0 ? "brown" : "green"}">${priceDelta.askRise == 0 ? "" : priceDelta.askRise > 0 ? "+" + priceDelta.askRise + "%" : priceDelta.askRise + "%"}</span>
             `;
 
         if (!div) {
           div = document.createElement('div');
           //div.style.border = '1px solid #90a6eb';
           div.style.color = 'white';
-          //div.style.backgroundColor = '#282844';
+          div.style.whiteSpace = 'nowrap';
           div.title = "📈🖱❌";
           div.onclick = function () {
             let [itemHrid, level] = itemHridLevel.split(":")
             requestItemPrice(itemHrid, cur_day, level);
+            mwi.game?.handleGoToMarketplace(itemHrid, level);//打开市场
             toggleShow(true);
           };
           favoContainer.addEventListener("mouseenter", () => {
@@ -2872,7 +2874,6 @@
       }
       config.x = Math.max(0, Math.min(container.getBoundingClientRect().x, window.innerWidth - 50));
       config.y = Math.max(0, Math.min(container.getBoundingClientRect().y, window.innerHeight - 50));
-      console.log("config:",config.x,config.y);
       if (container.style.width != "auto") {
         config.w = container.clientWidth;
         config.h = container.clientHeight;
