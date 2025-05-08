@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250507.5.6
+// @version      20250507.5.7
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -2499,7 +2499,7 @@
     favoContainer.style.flexWrap = 'wrap'
     favoContainer.style.position = 'absolute';
     favoContainer.style.top = '35px';
-    favoContainer.style.lineHeight="0px";
+    favoContainer.style.lineHeight="14px";
     favoContainer.style.overflow = 'hidden';
 
     container.appendChild(favoContainer);
@@ -2557,7 +2557,7 @@
         let iconName = itemHrid.split("/")[2];
         let itemName = mwi.isZh ? mwi.lang.zh.translation.itemNames[itemHrid] : mwi.lang.en.translation.itemNames[itemHrid];
         let fullInfo = `
-            <div title="${itemName}${level > 0 ? `(+${level})` : ""}" style="display:inline-block;border:1px solid #98a7e9;border-radius:4px;">
+            <div title="${itemName}${level > 0 ? `(+${level})` : ""}" style="display:inline-block;border:1px solid #98a7e9;">
             <svg width="14px" height="14px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
             <span>${itemName}${level > 0 ? `(+${level})` : ""}</span>
             <span style="color:${priceDelta.askRise == 0 ? "white" : priceDelta.askRise > 0 ? "red" : "lime"}">${priceDelta.ask}</span>
@@ -2567,13 +2567,13 @@
             </div>
             `;
         let simpleInfo = `
-            <div title="${itemName}${level > 0 ? `(+${level})` : ""}" style="display:inline-block;border:1px solid #98a7e9;border-radius:4px;">
+            <div title="${itemName}${level > 0 ? `(+${level})` : ""}" style="display:inline-block;border:1px solid #98a7e9;">
             <svg width="14px" height="14px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
             <span style="color:white;background-color:${priceDelta.askRise == 0 ? "transparent" : priceDelta.askRise > 0 ? "brown" : "green"}">${priceDelta.askRise == 0 ? "" : priceDelta.askRise > 0 ? "+" + priceDelta.askRise + "%" : priceDelta.askRise + "%"}</span>
             </div>
             `;
         let iconInfo = `
-          <div title="${itemName}${level > 0 ? `(+${level})` : ""}" style="display:inline-block;border:1px solid #98a7e9;border-radius:4px;">
+          <div title="${itemName}${level > 0 ? `(+${level})` : ""}" style="display:inline-block;border:1px solid #98a7e9;">
           <svg width="14px" height="14px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
           </div>
           `;
@@ -2620,7 +2620,7 @@
             div.innerHTML = iconInfo;
         }
         favoContainer.style.maxWidth = "min-content";
-        setTimeout(()=>{favoContainer.style.maxWidth = leftContainer.clientWidth+"px";},0);
+        favoContainer.style.maxWidth = leftContainer.clientWidth+"px";
       }
     }
 
