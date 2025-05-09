@@ -1,11 +1,10 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250507.5.7
+// @version      20250507.5.8
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
-// @match        https://test.milkywayidle.com/*
 // @icon         https://www.milkywayidle.com/favicon.svg
 // @grant        none
 // @require      https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js
@@ -178,7 +177,7 @@
       if (!(socket instanceof WebSocket)) {
         return oriGet.call(this);
       }
-      if (socket.url.indexOf("api.milkywayidle.com/ws") <= -1 && socket.url.indexOf("api-test.milkywayidle.com/ws") <= -1) {
+      if (socket.url.indexOf("api.milkywayidle.com/ws") <= -1) {
         return oriGet.call(this);
       }
       const message = oriGet.call(this);
