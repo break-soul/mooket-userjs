@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250507.5.9
+// @version      20250510.5.0
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -2360,15 +2360,15 @@
 
 
     // 创建下拉菜单并设置样式和位置
-    let wrapper = document.createElement('div');
-    wrapper.style.position = 'absolute';
-    wrapper.style.top = '5px';
-    wrapper.style.right = '16px';
-    wrapper.style.fontSize = '14px';
+    let uiContainer = document.createElement('div');
+    uiContainer.style.position = 'absolute';
+    uiContainer.style.top = '5px';
+    uiContainer.style.right = '16px';
+    uiContainer.style.fontSize = '14px';
 
     //wrapper.style.backgroundColor = '#fff';
-    wrapper.style.flexShrink = 0;
-    container.appendChild(wrapper);
+    uiContainer.style.flexShrink = 0;
+    container.appendChild(uiContainer);
 
     const days = [1, 3, 7, 14, 30, 180, 360];
     const dayTitle = ['1天', '3天', '1周', '2周', '1月', '半年', '一年'];
@@ -2391,7 +2391,7 @@
       select.appendChild(option);
     }
 
-    wrapper.appendChild(select);
+    uiContainer.appendChild(select);
 
     let btn_favo = document.createElement('input');
     btn_favo.type = 'button';
@@ -2400,7 +2400,7 @@
     btn_favo.style.position = "inline-block";
     btn_favo.title = "添加到自选";
     btn_favo.onclick = () => { if (curHridName) addFavo(curHridName + ":" + curLevel) };
-    wrapper.appendChild(btn_favo);
+    uiContainer.appendChild(btn_favo);
 
     //添加一个radio用于设置自动隐藏显示
     let btn_auto = document.createElement('input');
@@ -2412,7 +2412,7 @@
       config.autoHide = this.checked;
       save_config();
     }
-    wrapper.appendChild(btn_auto);
+    uiContainer.appendChild(btn_auto);
 
     // 创建一个容器元素并设置样式和位置
     const leftContainer = document.createElement('div');
@@ -2478,12 +2478,22 @@
     btn_switch.style.cursor = 'pointer';
     leftContainer.appendChild(btn_switch);
     btn_switch.onclick = function () {
-      if (config.favoMode === "icon") {
-        config.favoMode = "simple";
-      } else if (config.favoMode === "simple") {
-        config.favoMode = "full";
-      } else {
-        config.favoMode = "icon";
+      if (uiContainer.style.display === "none") {//隐藏的时候
+        if (config.favoModeOff === "icon") {
+          config.favoModeOff = "simple";
+        } else if (config.favoModeOff === "simple") {
+          config.favoModeOff = "full";
+        } else {
+          config.favoModeOff = "icon";
+        }
+      }else{
+        if (config.favoModeOn === "icon") {//显示的时候
+          config.favoModeOn = "simple";
+        } else if (config.favoModeOn === "simple") {
+          config.favoModeOn = "full";
+        } else {
+          config.favoModeOn = "icon";
+        }
       }
       updateFavo();
       save_config();
@@ -2498,7 +2508,7 @@
     favoContainer.style.flexWrap = 'wrap'
     favoContainer.style.position = 'absolute';
     favoContainer.style.top = '35px';
-    favoContainer.style.lineHeight="14px";
+    favoContainer.style.lineHeight = "14px";
     favoContainer.style.overflow = 'hidden';
 
     container.appendChild(favoContainer);
@@ -2608,7 +2618,8 @@
           favoContainer.appendChild(div);
         }
         //鼠标如果在div范围内就显示fullinfo
-        switch (config.favoMode) {
+        let favoMode = uiContainer.style.display === 'none' ? config.favoModeOff :config.favoModeOn
+        switch (favoMode) {
           case "full":
             div.innerHTML = fullInfo;
             break;
@@ -2619,7 +2630,7 @@
             div.innerHTML = iconInfo;
         }
         favoContainer.style.maxWidth = "min-content";
-        favoContainer.style.maxWidth = leftContainer.clientWidth+"px";
+        favoContainer.style.maxWidth = leftContainer.clientWidth + "px";
       }
     }
 
@@ -2631,8 +2642,8 @@
     btn_close.onclick = toggle;
     function toggle() {
 
-      if (wrapper.style.display === 'none') {//展开
-        wrapper.style.display = ctx.style.display = 'block';
+      if (uiContainer.style.display === 'none') {//展开
+        uiContainer.style.display = ctx.style.display = 'block';
         container.style.resize = "both";
         btn_close.value = '📈' + (mwi.isZh ? "隐藏" : "Hide");
         leftContainer.style.position = 'absolute'
@@ -2647,11 +2658,12 @@
         favoContainer.style.position = 'absolute';
         favoContainer.style.cursor = 'pointer';
 
+        updateFavo();
         save_config();
       } else {//隐藏
         lastWidth = container.style.width;
         lastHeight = container.style.height;
-        wrapper.style.display = ctx.style.display = 'none';
+        uiContainer.style.display = ctx.style.display = 'none';
         container.style.resize = "none";
         container.style.width = "auto";
         container.style.height = "auto";
@@ -2665,11 +2677,13 @@
         favoContainer.style.right = null;
         favoContainer.style.position = 'relative'
         config.visible = false;
+
+        updateFavo();
         save_config();
       }
     };
     function toggleShow(show = true) {
-      if ((wrapper.style.display !== 'none') !== show) {
+      if ((uiContainer.style.display !== 'none') !== show) {
         toggle()
       }
     }
@@ -2881,17 +2895,17 @@
       chart.options.plugins.title.text = curShowItemName;
       chart.data.datasets = [
         {
-          label: mwi.isZh ? '买一' : "bid1",
-          data: data.bid.map(x => x.price),
-          borderColor: '#ff3300',
-          backgroundColor: '#ff3300',
-          borderWidth: 1.5
-        },
-        {
           label: mwi.isZh ? '卖一' : "ask1",
           data: data.ask.map(x => x.price),
           borderColor: '#00cc00',
           backgroundColor: '#00cc00',
+          borderWidth: 1.5
+        },
+        {
+          label: mwi.isZh ? '买一' : "bid1",
+          data: data.bid.map(x => x.price),
+          borderColor: '#ff3300',
+          backgroundColor: '#ff3300',
           borderWidth: 1.5
         },
         {
@@ -2923,11 +2937,11 @@
       chart.update()
     }
     function save_config() {
-      if (mwi.character?.gameMode !== "standard"){
+      if (mwi.character?.gameMode !== "standard") {
         btn_favo.style.display = "none";
         btn_switch.style.display = "none";
         return;//铁牛不保存
-      } 
+      }
       btn_favo.style.display = "inline-block";
       btn_switch.style.display = "inline-block";
 
@@ -2975,7 +2989,7 @@
     let count = 0;
     const interval = setInterval(() => {
       count++;
-      if (count > 10) { 
+      if (count > 30) {
         clearInterval(interval);
         console.info("mooket 初始化超时，部分功能受限");
         resolve();
