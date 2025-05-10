@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250510.5.0
+// @version      20250510.5.1
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -2478,23 +2478,17 @@
     btn_switch.style.cursor = 'pointer';
     leftContainer.appendChild(btn_switch);
     btn_switch.onclick = function () {
-      if (uiContainer.style.display === "none") {//隐藏的时候
-        if (config.favoModeOff === "icon") {
-          config.favoModeOff = "simple";
-        } else if (config.favoModeOff === "simple") {
-          config.favoModeOff = "full";
-        } else {
-          config.favoModeOff = "icon";
-        }
-      }else{
-        if (config.favoModeOn === "icon") {//显示的时候
-          config.favoModeOn = "simple";
-        } else if (config.favoModeOn === "simple") {
-          config.favoModeOn = "full";
-        } else {
-          config.favoModeOn = "icon";
-        }
-      }
+      const modeCycle = {
+        icon: "iconPercent",
+        iconPercent: "iconPrice",
+        iconPrice: "normalPercent",
+        normalPercent: "normalPrice",
+        normalPrice: "full",
+        full: "icon"
+      };
+
+      const target = uiContainer.style.display === "none" ? "favoModeOff" : "favoModeOn";
+      config[target] = modeCycle[config[target]] || "icon";
       updateFavo();
       save_config();
     };
@@ -2565,27 +2559,7 @@
         let [itemHrid, level] = itemHridLevel.split(":");
         let iconName = itemHrid.split("/")[2];
         let itemName = mwi.isZh ? mwi.lang.zh.translation.itemNames[itemHrid] : mwi.lang.en.translation.itemNames[itemHrid];
-        let fullInfo = `
-            <div title="${itemName}${level > 0 ? `(+${level})` : ""}" style="display:inline-block;border:1px solid #98a7e9;">
-            <svg width="14px" height="14px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
-            <span>${itemName}${level > 0 ? `(+${level})` : ""}</span>
-            <span style="color:${priceDelta.askRise == 0 ? "white" : priceDelta.askRise > 0 ? "red" : "lime"}">${priceDelta.ask}</span>
-            <span style="color:white;background-color:${priceDelta.askRise == 0 ? "transparent" : priceDelta.askRise > 0 ? "brown" : "green"}">${priceDelta.askRise > 0 ? "+" : ""}${priceDelta.askRise}%</span>
-            <span style="color:${priceDelta.bidRise == 0 ? "white" : priceDelta.bidRise > 0 ? "red" : "lime"}">${priceDelta.bid}</span>
-            <span style="color:white;background-color:${priceDelta.bidRise == 0 ? "transparent" : priceDelta.bidRise > 0 ? "brown" : "green"}">${priceDelta.bidRise > 0 ? "+" : ""}${priceDelta.bidRise}%</span>
-            </div>
-            `;
-        let simpleInfo = `
-            <div title="${itemName}${level > 0 ? `(+${level})` : ""}" style="display:inline-block;border:1px solid #98a7e9;">
-            <svg width="14px" height="14px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
-            <span style="color:white;background-color:${priceDelta.askRise == 0 ? "transparent" : priceDelta.askRise > 0 ? "brown" : "green"}">${priceDelta.askRise == 0 ? "" : priceDelta.askRise > 0 ? "+" + priceDelta.askRise + "%" : priceDelta.askRise + "%"}</span>
-            </div>
-            `;
-        let iconInfo = `
-          <div title="${itemName}${level > 0 ? `(+${level})` : ""}" style="display:inline-block;border:1px solid #98a7e9;">
-          <svg width="14px" height="14px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
-          </div>
-          `;
+
 
         if (!div) {
           div = document.createElement('div');
@@ -2599,35 +2573,65 @@
             mwi.game?.handleGoToMarketplace(itemHrid, level);//打开市场
             toggleShow(true);
           };
-          /*
-          favoContainer.addEventListener("pointerenter", () => {
-            if (!div.isFullInfo) {
-              div.isFullInfo = true;
-              div.innerHTML = div.fullInfo;
-            }
-          });
-          favoContainer.addEventListener("pointerleave", () => {
-            if (div.isFullInfo) {
-              div.isFullInfo = false;
-              div.innerHTML = div.simpleInfo;
-            }
-          });
-          */
           div.oncontextmenu = (event) => { event.preventDefault(); removeFavo(itemHridLevel); };
           div.id = itemHridLevel;
           favoContainer.appendChild(div);
         }
         //鼠标如果在div范围内就显示fullinfo
-        let favoMode = uiContainer.style.display === 'none' ? config.favoModeOff :config.favoModeOn
+        let favoMode = uiContainer.style.display === 'none' ? config.favoModeOff : config.favoModeOn;
         switch (favoMode) {
           case "full":
-            div.innerHTML = fullInfo;
+            div.innerHTML = `
+            <div title="${itemName}${level > 0 ? `(+${level})` : ""}" style="display:inline-block;border:1px solid #98a7e9;">
+            <svg width="14px" height="14px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
+            <span>${itemName}${level > 0 ? `(+${level})` : ""}</span>
+            <span style="color:${priceDelta.askRise == 0 ? "white" : priceDelta.askRise > 0 ? "red" : "lime"}">${priceDelta.ask}</span>
+            <span style="color:white;background-color:${priceDelta.askRise == 0 ? "black" : priceDelta.askRise > 0 ? "brown" : "green"}">${priceDelta.askRise > 0 ? "+" : ""}${priceDelta.askRise}%</span>
+            <span style="color:${priceDelta.bidRise == 0 ? "white" : priceDelta.bidRise > 0 ? "red" : "lime"}">${priceDelta.bid}</span>
+            <span style="color:white;background-color:${priceDelta.bidRise == 0 ? "black" : priceDelta.bidRise > 0 ? "brown" : "green"}">${priceDelta.bidRise > 0 ? "+" : ""}${priceDelta.bidRise}%</span>
+            </div>
+            `;
             break;
-          case "simple":
-            div.innerHTML = simpleInfo;
+          case "iconPercent":
+            div.innerHTML = `
+            <div title="${itemName}${level > 0 ? `(+${level})` : ""}" style="display:inline-block;border:1px solid #98a7e9;">
+            <svg width="14px" height="14px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
+            <span style="color:white;background-color:${priceDelta.askRise == 0 ? "transparent" : priceDelta.askRise > 0 ? "brown" : "green"}">${priceDelta.askRise == 0 ? "" : priceDelta.askRise > 0 ? "+" + priceDelta.askRise + "%" : priceDelta.askRise + "%"}</span>
+            </div>
+            `;
             break;
-          default:
-            div.innerHTML = iconInfo;
+          case "iconPrice":
+            div.innerHTML = `
+            <div title="${itemName}${level > 0 ? `(+${level})` : ""}" style="display:inline-block;border:1px solid #98a7e9;">
+            <svg width="14px" height="14px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
+            <span style="color:${priceDelta.askRise == 0 ? "white" : priceDelta.askRise > 0 ? "red" : "lime"}">${priceDelta.ask}</span>
+            </div>
+            `;
+            break;
+          case "normalPercent":
+            div.innerHTML = `
+            <div title="${itemName}${level > 0 ? `(+${level})` : ""}" style="display:inline-block;border:1px solid #98a7e9;">
+            <svg width="14px" height="14px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
+            <span>${itemName}${level > 0 ? `(+${level})` : ""}</span>
+            <span style="color:white;background-color:${priceDelta.askRise == 0 ? "transparent" : priceDelta.askRise > 0 ? "brown" : "green"}">${priceDelta.askRise == 0 ? "" : priceDelta.askRise > 0 ? "+" + priceDelta.askRise + "%" : priceDelta.askRise + "%"}</span>
+            </div>
+            `;
+            break;
+          case "normalPrice":
+            div.innerHTML = `
+              <div title="${itemName}${level > 0 ? `(+${level})` : ""}" style="display:inline-block;border:1px solid #98a7e9;">
+              <svg width="14px" height="14px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
+              <span>${itemName}${level > 0 ? `(+${level})` : ""}</span>
+              <span style="color:${priceDelta.askRise == 0 ? "white" : priceDelta.askRise > 0 ? "red" : "lime"}">${priceDelta.ask}</span>
+              </div>
+              `;
+            break;
+          default://icon
+            div.innerHTML = `
+          <div title="${itemName}${level > 0 ? `(+${level})` : ""}" style="display:inline-block;border:1px solid #98a7e9;">
+          <svg width="14px" height="14px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
+          </div>
+          `;
         }
         favoContainer.style.maxWidth = "min-content";
         favoContainer.style.maxWidth = leftContainer.clientWidth + "px";
