@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250507.5.8
+// @version      20250507.5.9
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -1844,7 +1844,7 @@
     const interval = setInterval(() => {
       count++;
       if (count > 30) {
-        console.warn("injecting failed，部分功能可能受到影响，可以尝试刷新页面或者关闭网页重开");
+        console.warn("injecting failed，部分功能可能受到影响，可以尝试刷新页面或者关闭网页重开(Steam用户请忽略)");
         clearInterval(interval)
       }//最多等待30秒
       if (mwi.game && mwi.lang && mwi?.game?.state?.character?.gameMode) {//等待必须组件加载完毕后再初始化
@@ -2923,7 +2923,13 @@
       chart.update()
     }
     function save_config() {
-      if (mwi.character?.gameMode !== "standard") return;//铁牛不保存
+      if (mwi.character?.gameMode !== "standard"){
+        btn_favo.style.display = "none";
+        btn_switch.style.display = "none";
+        return;//铁牛不保存
+      } 
+      btn_favo.style.display = "inline-block";
+      btn_switch.style.display = "inline-block";
 
       if (chart && chart.data && chart.data.datasets && chart.data.datasets.length == 3) {
         config.filter.ask = chart.getDatasetMeta(0).visible;
@@ -2969,7 +2975,11 @@
     let count = 0;
     const interval = setInterval(() => {
       count++;
-      if (count > 30) { clearInterval(interval) }//最多等待30秒
+      if (count > 10) { 
+        clearInterval(interval);
+        console.info("mooket 初始化超时，部分功能受限");
+        resolve();
+      }//最多等待10秒
       if (document.body && mwi.character?.gameMode) {//等待必须组件加载完毕后再初始化
         clearInterval(interval);
         resolve();
