@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250510.5.1
+// @version      20250510.5.2
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -2481,9 +2481,11 @@
       const modeCycle = {
         icon: "iconPercent",
         iconPercent: "iconPrice",
-        iconPrice: "normalPercent",
+        iconPrice: "iconFull",
+        iconFull: "normalPercent",
         normalPercent: "normalPrice",
-        normalPrice: "full",
+        normalPrice: "normalFull",
+        normalFull: "full",
         full: "icon"
       };
 
@@ -2579,10 +2581,11 @@
         }
         //鼠标如果在div范围内就显示fullinfo
         let favoMode = uiContainer.style.display === 'none' ? config.favoModeOff : config.favoModeOn;
+        let title = `${itemName}${level > 0 ? `(+${level})` : ""} ${priceDelta.ask} ${priceDelta.askRise > 0 ? "+" : ""}${priceDelta.askRise}% ${new Date(newPrice.time * 1000).toLocaleString()}`;
         switch (favoMode) {
           case "full":
             div.innerHTML = `
-            <div title="${itemName}${level > 0 ? `(+${level})` : ""}" style="display:inline-block;border:1px solid #98a7e9;">
+            <div title="${title}" style="display:inline-block;border:1px solid #98a7e9;">
             <svg width="14px" height="14px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
             <span>${itemName}${level > 0 ? `(+${level})` : ""}</span>
             <span style="color:${priceDelta.askRise == 0 ? "white" : priceDelta.askRise > 0 ? "red" : "lime"}">${priceDelta.ask}</span>
@@ -2594,7 +2597,7 @@
             break;
           case "iconPercent":
             div.innerHTML = `
-            <div title="${itemName}${level > 0 ? `(+${level})` : ""}" style="display:inline-block;border:1px solid #98a7e9;">
+            <div title="${title}" style="display:inline-block;border:1px solid #98a7e9;">
             <svg width="14px" height="14px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
             <span style="color:white;background-color:${priceDelta.askRise == 0 ? "transparent" : priceDelta.askRise > 0 ? "brown" : "green"}">${priceDelta.askRise == 0 ? "" : priceDelta.askRise > 0 ? "+" + priceDelta.askRise + "%" : priceDelta.askRise + "%"}</span>
             </div>
@@ -2602,15 +2605,24 @@
             break;
           case "iconPrice":
             div.innerHTML = `
-            <div title="${itemName}${level > 0 ? `(+${level})` : ""}" style="display:inline-block;border:1px solid #98a7e9;">
+            <div title="${title}" style="display:inline-block;border:1px solid #98a7e9;">
             <svg width="14px" height="14px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
             <span style="color:${priceDelta.askRise == 0 ? "white" : priceDelta.askRise > 0 ? "red" : "lime"}">${priceDelta.ask}</span>
             </div>
             `;
             break;
+          case "iconFull":
+            div.innerHTML = `
+            <div title="${title}" style="display:inline-block;border:1px solid #98a7e9;">
+            <svg width="14px" height="14px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
+            <span style="color:${priceDelta.askRise == 0 ? "white" : priceDelta.askRise > 0 ? "red" : "lime"}">${priceDelta.ask}</span>
+            <span style="color:white;background-color:${priceDelta.askRise == 0 ? "black" : priceDelta.askRise > 0 ? "brown" : "green"}">${priceDelta.askRise > 0 ? "+" : ""}${priceDelta.askRise}%</span>
+            </div>
+            `;
+            break;
           case "normalPercent":
             div.innerHTML = `
-            <div title="${itemName}${level > 0 ? `(+${level})` : ""}" style="display:inline-block;border:1px solid #98a7e9;">
+            <div title="${title}" style="display:inline-block;border:1px solid #98a7e9;">
             <svg width="14px" height="14px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
             <span>${itemName}${level > 0 ? `(+${level})` : ""}</span>
             <span style="color:white;background-color:${priceDelta.askRise == 0 ? "transparent" : priceDelta.askRise > 0 ? "brown" : "green"}">${priceDelta.askRise == 0 ? "" : priceDelta.askRise > 0 ? "+" + priceDelta.askRise + "%" : priceDelta.askRise + "%"}</span>
@@ -2619,16 +2631,26 @@
             break;
           case "normalPrice":
             div.innerHTML = `
-              <div title="${itemName}${level > 0 ? `(+${level})` : ""}" style="display:inline-block;border:1px solid #98a7e9;">
+              <div title="${title}" style="display:inline-block;border:1px solid #98a7e9;">
               <svg width="14px" height="14px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
               <span>${itemName}${level > 0 ? `(+${level})` : ""}</span>
               <span style="color:${priceDelta.askRise == 0 ? "white" : priceDelta.askRise > 0 ? "red" : "lime"}">${priceDelta.ask}</span>
               </div>
               `;
             break;
+          case "normalFull":
+            div.innerHTML = `
+            <div title="${title}" style="display:inline-block;border:1px solid #98a7e9;">
+            <svg width="14px" height="14px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
+            <span>${itemName}${level > 0 ? `(+${level})` : ""}</span>
+            <span style="color:${priceDelta.askRise == 0 ? "white" : priceDelta.askRise > 0 ? "red" : "lime"}">${priceDelta.ask}</span>
+            <span style="color:white;background-color:${priceDelta.askRise == 0 ? "black" : priceDelta.askRise > 0 ? "brown" : "green"}">${priceDelta.askRise > 0 ? "+" : ""}${priceDelta.askRise}%</span>
+            </div>
+            `;
+            break;
           default://icon
             div.innerHTML = `
-          <div title="${itemName}${level > 0 ? `(+${level})` : ""}" style="display:inline-block;border:1px solid #98a7e9;">
+          <div title="${title}" style="display:inline-block;border:1px solid #98a7e9;">
           <svg width="14px" height="14px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
           </div>
           `;
