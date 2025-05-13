@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250510.5.3
+// @version      20250514.5.0
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -98,14 +98,16 @@
     event.key = key;
     event.newValue = value;
     event.oldValue = localStorage.getItem(key);
-    document.dispatchEvent(event);
     originalSetItem.apply(this, arguments);
+    dispatchEvent(event);
+
   };
 
-  document.addEventListener('localStorageChanged', function (event) {
+  addEventListener('localStorageChanged', function (event) {
     if (event.key === "i18nextLng") {
       console.log(`i18nextLng changed: ${event.key} = ${event.newValue}`);
       mwi.isZh = event.newValue?.startsWith("zh");
+      dispatchEvent(new Event("MWILangChanged"));
     }
   });
   async function patchScript(node) {
@@ -2213,17 +2215,21 @@
 
 
 
-    let cur_day = 1;
+    let curDay = 1;
     let curHridName = null;
     let curLevel = 0;
     let curShowItemName = null;
+
+    let delayItemHridName = null;
+    let delayItemLevel = 0;
+
     let chartWidth = 500;
     let chartHeight = 280
 
     let configStr = localStorage.getItem("mooket_config");
     let config = configStr ? JSON.parse(configStr) : { "dayIndex": 0, "visible": true, "filter": { "bid": true, "ask": true, "mean": true }, "favo": {} };
     config.favo = config.favo || {};
-    cur_day = config.day;//读取设置
+    curDay = config.day;//读取设置
 
     let trade_history = JSON.parse(localStorage.getItem("mooket_trade_history") || "{}");
     function trade_history_migrate() {
@@ -2274,9 +2280,8 @@
     container.style.display = "none";
     container.style.flexDirection = "column";
     container.style.flex = "1";
-    container.style.minHeight = "33px";
-    container.style.minWidth = "68px";
-    container.style.cursor = "move";
+    container.style.minHeight = "min-content";
+    container.style.minWidth = "112px";
     container.style.userSelect = "none";
 
     let mouseDragging = false;
@@ -2354,7 +2359,7 @@
     document.body.appendChild(container);
 
     const ctx = document.createElement('canvas');
-    ctx.id = "mooChart";
+    ctx.id = "mooket_chart";
     container.appendChild(ctx);
 
 
@@ -2370,15 +2375,14 @@
     uiContainer.style.flexShrink = 0;
     container.appendChild(uiContainer);
 
-    const days = [1, 3, 7, 14, 30, 180, 360];
-    const dayTitle = ['1天', '3天', '1周', '2周', '1月', '半年', '一年'];
-    cur_day = days[config.dayIndex];
+    const days = [1, 3, 7, 14, 30, 90, 180];
+    curDay = days[config.dayIndex];
 
     let select = document.createElement('select');
     select.style.cursor = 'pointer';
     select.style.verticalAlign = 'middle';
     select.onchange = function () {
-      config.dayIndex = days.indexOf(parseInt(this.value));
+      config.dayIndex = this.selectedIndex;
       if (curHridName) requestItemPrice(curHridName, this.value, curLevel);
       save_config();
     };
@@ -2386,33 +2390,39 @@
     for (let i = 0; i < days.length; i++) {
       let option = document.createElement('option');
       option.value = days[i];
-      option.text = dayTitle[i];
       if (i === config.dayIndex) option.selected = true;
       select.appendChild(option);
     }
-
+    updateMoodays();
+    function updateMoodays() {
+      for (let i = 0; i < select.options.length; i++) {
+        select.options[i].text = days[i] + (mwi.isZh ? "天" : "d");
+      }
+    }
+    
     uiContainer.appendChild(select);
-
-    let btn_favo = document.createElement('input');
-    btn_favo.type = 'button';
-    //btn_favo.classList.add('Button_button__1Fe9z')
-    btn_favo.value = '📌';
-    btn_favo.style.position = "inline-block";
-    btn_favo.title = "添加到自选";
-    btn_favo.onclick = () => { if (curHridName) addFavo(curHridName + ":" + curLevel) };
-    uiContainer.appendChild(btn_favo);
 
     //添加一个radio用于设置自动隐藏显示
     let btn_auto = document.createElement('input');
     btn_auto.type = 'checkbox';
     btn_auto.style.cursor = 'pointer';
+    btn_auto.style.verticalAlign = 'middle';
     btn_auto.title = mwi.isZh ? "在市场外隐藏" : "hide when out of marketplace";
     btn_auto.checked = config.autoHide;
+    btn_auto.id = "mooket_autoHide";
+
     btn_auto.onchange = function () {
       config.autoHide = this.checked;
       save_config();
     }
     uiContainer.appendChild(btn_auto);
+    let label_auto = document.createElement('label');
+    label_auto.htmlFor = btn_auto.id;
+    label_auto.style.cursor = 'pointer';
+    label_auto.style.color = 'white';
+    label_auto.style.marginLeft = '5px';
+    label_auto.textContent = mwi.isZh ? "自动隐藏" : "Auto Hide";
+    uiContainer.appendChild(label_auto);
 
     // 创建一个容器元素并设置样式和位置
     const leftContainer = document.createElement('div');
@@ -2431,52 +2441,17 @@
     btn_close.style.cursor = 'pointer';
 
     leftContainer.appendChild(btn_close);
-    /*
-        let picker = document.createElement('input');
-        picker.type = 'color';
-        picker.style.cursor = 'pointer';
-        picker.style.width = '20px';
-        picker.style.height = '20px';
-        picker.style.padding = "0"
-        picker.style.verticalAlign = "middle"
-        picker.onchange = function () {
-          container.style.backgroundColor = this.value;
-          config.bgcolor = this.value;
-          save_config();
-        }
-        wrapper.appendChild(picker);
-    */
-
-
-    //一个固定的文本显示买入卖出历史价格
-    let price_info = document.createElement('div');
-
-    price_info.style.fontSize = '14px';
-    price_info.title = mwi.isZh ? "我的最近买/卖价格" : "recently buy/sell price";
-    price_info.style.width = "max-content";
-    price_info.style.whiteSpace = "nowrap";
-    price_info.style.lineHeight = '25px';
-    price_info.style.display = 'none';
-    price_info.style.marginLeft = '5px';
-
-    let buy_price = document.createElement('span');
-    let sell_price = document.createElement('span');
-    price_info.appendChild(buy_price);
-    price_info.appendChild(sell_price);
-    buy_price.style.color = 'red';
-    sell_price.style.color = 'lime';
-
-    leftContainer.appendChild(price_info);
 
     //添加一个按钮切换simpleInfo和fullInfo
 
     let btn_switch = document.createElement('input');
     btn_switch.type = 'button';
     btn_switch.value = "👁";
-    btn_switch.title = mwi.isZh ? "切换自选显示模式" : "switch favo item show mode";
-    btn_switch.style.marginLeft = '5px';
+    btn_switch.title = mwi.isZh ? "切换显示模式" : "Detail level";
     btn_switch.style.cursor = 'pointer';
-    leftContainer.appendChild(btn_switch);
+    btn_switch.style.padding = "0 3px";
+    btn_switch.style.fontSize = "16px";
+
     btn_switch.onclick = function () {
       const modeCycle = {
         icon: "iconPercent",
@@ -2494,18 +2469,19 @@
       updateFavo();
       save_config();
     };
+    leftContainer.appendChild(btn_switch);
 
     //自选
     let favoContainer = document.createElement('div');
-    favoContainer.style.fontSize = '14px';
-    favoContainer.style.maxWidth = "200px";
-    favoContainer.style.minWidth = "min-content";
+    favoContainer.style.fontSize = '15px';
+    favoContainer.style.maxWidth = "100%";
     favoContainer.style.display = 'flex';
     favoContainer.style.flexWrap = 'wrap'
     favoContainer.style.position = 'absolute';
     favoContainer.style.top = '35px';
-    favoContainer.style.lineHeight = "14px";
-    favoContainer.style.overflow = 'hidden';
+    favoContainer.style.lineHeight = "15px";
+    favoContainer.style.overflow = 'auto';
+    favoContainer.title = "📈🖱❌";
 
     container.appendChild(favoContainer);
 
@@ -2515,6 +2491,7 @@
       Object.entries(config.favo || {}).forEach(([itemHridLevel, data]) => {
         items.add(itemHridLevel.split(":")[0]);
       });
+      //if(items.size > 10)mwi.game?.updateNotifications("info",mwi.isZh?"当前的自选物品种类已超过10个，服务器仅会自动推送前10个物品的最新价格":"");
       mwi.coreMarket.subscribeItems(Array.from(items));
       updateFavo();
     }
@@ -2543,7 +2520,7 @@
         }
       }
       for (let itemHridLevel of items) {
-        let div = document.getElementById(itemHridLevel);
+        let favoItemDiv = document.getElementById(itemHridLevel);
 
         let oldPrice = config.favo[itemHridLevel];
         let newPrice = mwi.coreMarket.getItemPrice(itemHridLevel);
@@ -2563,30 +2540,35 @@
         let itemName = mwi.isZh ? mwi.lang.zh.translation.itemNames[itemHrid] : mwi.lang.en.translation.itemNames[itemHrid];
 
 
-        if (!div) {
-          div = document.createElement('div');
+        if (!favoItemDiv) {
+          favoItemDiv = document.createElement('div');
           //div.style.border = '1px solid #90a6eb';
-          div.style.color = 'white';
-          div.style.whiteSpace = 'nowrap';
-          div.title = "📈🖱❌";
-          div.onclick = function () {
+          favoItemDiv.style.color = 'white';
+          favoItemDiv.style.whiteSpace = 'nowrap';
+          favoItemDiv.style.cursor = 'pointer';
+          favoItemDiv.onclick = function () {
             let [itemHrid, level] = itemHridLevel.split(":")
-            requestItemPrice(itemHrid, cur_day, level);
-            mwi.game?.handleGoToMarketplace(itemHrid, level);//打开市场
+            if (uiContainer.style.display === 'none') {
+              delayItemHridName = itemHrid;
+              delayItemLevel = parseInt(level);
+            } else {
+              requestItemPrice(itemHrid, curDay, level);
+            }
+            mwi.game?.handleGoToMarketplace(itemHrid, parseInt(level));//打开市场
             //toggleShow(true);
           };
-          div.oncontextmenu = (event) => { event.preventDefault(); removeFavo(itemHridLevel); };
-          div.id = itemHridLevel;
-          favoContainer.appendChild(div);
+          favoItemDiv.oncontextmenu = (event) => { event.preventDefault(); removeFavo(itemHridLevel); };
+          favoItemDiv.id = itemHridLevel;
+          favoContainer.appendChild(favoItemDiv);
         }
         //鼠标如果在div范围内就显示fullinfo
         let favoMode = uiContainer.style.display === 'none' ? config.favoModeOff : config.favoModeOn;
         let title = `${itemName}${level > 0 ? `(+${level})` : ""} ${priceDelta.ask} ${priceDelta.askRise > 0 ? "+" : ""}${priceDelta.askRise}% ${new Date(newPrice.time * 1000).toLocaleString()}`;
         switch (favoMode) {
           case "full":
-            div.innerHTML = `
+            favoItemDiv.innerHTML = `
             <div title="${title}" style="display:inline-block;border:1px solid #98a7e9;">
-            <svg width="16px" height="16px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
+            <svg width="15px" height="15px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
             <span>${itemName}${level > 0 ? `(+${level})` : ""}</span>
             <span style="color:${priceDelta.askRise == 0 ? "white" : priceDelta.askRise > 0 ? "red" : "lime"}">${priceDelta.ask}</span>
             <span style="color:white;background-color:${priceDelta.askRise == 0 ? "black" : priceDelta.askRise > 0 ? "brown" : "green"}">${priceDelta.askRise > 0 ? "+" : ""}${priceDelta.askRise}%</span>
@@ -2596,52 +2578,52 @@
             `;
             break;
           case "iconPercent":
-            div.innerHTML = `
+            favoItemDiv.innerHTML = `
             <div title="${title}" style="display:inline-block;border:1px solid #98a7e9;">
-            <svg width="16px" height="16px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
+            <svg width="15px" height="15px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
             <span style="color:white;background-color:${priceDelta.askRise == 0 ? "transparent" : priceDelta.askRise > 0 ? "brown" : "green"}">${priceDelta.askRise == 0 ? "" : priceDelta.askRise > 0 ? "+" + priceDelta.askRise + "%" : priceDelta.askRise + "%"}</span>
             </div>
             `;
             break;
           case "iconPrice":
-            div.innerHTML = `
+            favoItemDiv.innerHTML = `
             <div title="${title}" style="display:inline-block;border:1px solid #98a7e9;">
-            <svg width="16px" height="16px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
+            <svg width="15px" height="15px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
             <span style="color:${priceDelta.askRise == 0 ? "white" : priceDelta.askRise > 0 ? "red" : "lime"}">${priceDelta.ask}</span>
             </div>
             `;
             break;
           case "iconFull":
-            div.innerHTML = `
+            favoItemDiv.innerHTML = `
             <div title="${title}" style="display:inline-block;border:1px solid #98a7e9;">
-            <svg width="16px" height="16px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
+            <svg width="15px" height="15px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
             <span style="color:${priceDelta.askRise == 0 ? "white" : priceDelta.askRise > 0 ? "red" : "lime"}">${priceDelta.ask}</span>
             <span style="color:white;background-color:${priceDelta.askRise == 0 ? "black" : priceDelta.askRise > 0 ? "brown" : "green"}">${priceDelta.askRise > 0 ? "+" : ""}${priceDelta.askRise}%</span>
             </div>
             `;
             break;
           case "normalPercent":
-            div.innerHTML = `
+            favoItemDiv.innerHTML = `
             <div title="${title}" style="display:inline-block;border:1px solid #98a7e9;">
-            <svg width="16px" height="16px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
+            <svg width="15px" height="15px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
             <span>${itemName}${level > 0 ? `(+${level})` : ""}</span>
             <span style="color:white;background-color:${priceDelta.askRise == 0 ? "transparent" : priceDelta.askRise > 0 ? "brown" : "green"}">${priceDelta.askRise == 0 ? "" : priceDelta.askRise > 0 ? "+" + priceDelta.askRise + "%" : priceDelta.askRise + "%"}</span>
             </div>
             `;
             break;
           case "normalPrice":
-            div.innerHTML = `
+            favoItemDiv.innerHTML = `
               <div title="${title}" style="display:inline-block;border:1px solid #98a7e9;">
-              <svg width="16px" height="16px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
+              <svg width="15px" height="15px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
               <span>${itemName}${level > 0 ? `(+${level})` : ""}</span>
               <span style="color:${priceDelta.askRise == 0 ? "white" : priceDelta.askRise > 0 ? "red" : "lime"}">${priceDelta.ask}</span>
               </div>
               `;
             break;
           case "normalFull":
-            div.innerHTML = `
+            favoItemDiv.innerHTML = `
             <div title="${title}" style="display:inline-block;border:1px solid #98a7e9;">
-            <svg width="16px" height="16px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
+            <svg width="15px" height="15px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
             <span>${itemName}${level > 0 ? `(+${level})` : ""}</span>
             <span style="color:${priceDelta.askRise == 0 ? "white" : priceDelta.askRise > 0 ? "red" : "lime"}">${priceDelta.ask}</span>
             <span style="color:white;background-color:${priceDelta.askRise == 0 ? "black" : priceDelta.askRise > 0 ? "brown" : "green"}">${priceDelta.askRise > 0 ? "+" : ""}${priceDelta.askRise}%</span>
@@ -2649,50 +2631,61 @@
             `;
             break;
           default://icon
-            div.innerHTML = `
+            favoItemDiv.innerHTML = `
           <div title="${title}" style="display:inline-block;border:1px solid #98a7e9;">
           <svg width="20px" height="20px" style="display:inline-block"><use href="/static/media/items_sprite.6d12eb9d.svg#${iconName}"></use></svg>
           </div>
           `;
         }
-        favoContainer.style.maxWidth = "min-content";
-        favoContainer.style.maxWidth = leftContainer.clientWidth + "px";
       }
     }
 
     sendFavo();//初始化自选
     addEventListener('MWICoreItemPriceUpdated', updateFavo);
-
-    let lastWidth;
-    let lastHeight;
+    addEventListener("MWILangChanged",()=>{
+      updateMoodays();
+      updateFavo();
+      btn_switch.title = mwi.isZh ? "显示模式" : "Detail Level";
+      btn_auto.title = mwi.isZh ? "在市场外隐藏" : "Hide out of marketplace";
+      label_auto.textContent = mwi.isZh ? "自动隐藏" : "AutoHide";
+      if(uiContainer.style.display === 'none'){
+        btn_close.value = mwi.isZh ? "📈显示" : "Show";
+      }else{
+        btn_close.value = mwi.isZh ? "📈隐藏" : "Hide";
+      }
+      
+    });
     btn_close.onclick = toggle;
     function toggle() {
 
       if (uiContainer.style.display === 'none') {//展开
         uiContainer.style.display = ctx.style.display = 'block';
-        container.style.resize = "both";
+
         btn_close.value = '📈' + (mwi.isZh ? "隐藏" : "Hide");
         leftContainer.style.position = 'absolute'
         leftContainer.style.top = '1px';
         leftContainer.style.left = '1px';
-        container.style.width = lastWidth;
-        container.style.height = lastHeight;
+        container.style.width = config.w + "px";
+        container.style.height = config.h + "px";
+        container.style.minHeight = "150px";
+        container.style.minWidth = "200px";
+
         config.visible = true;
         favoContainer.style.top = "35px";
         favoContainer.style.right = 0;
         favoContainer.style.left = null;
         favoContainer.style.position = 'absolute';
-        favoContainer.style.cursor = 'pointer';
 
+        requestItemPrice(delayItemHridName, curDay, delayItemLevel);
         updateFavo();
         save_config();
       } else {//隐藏
-        lastWidth = container.style.width;
-        lastHeight = container.style.height;
         uiContainer.style.display = ctx.style.display = 'none';
-        container.style.resize = "none";
-        container.style.width = "auto";
-        container.style.height = "auto";
+
+        container.style.width = config.minWidth + "px";
+        container.style.height = config.minHeight + "px";
+        container.style.minHeight = "min-content";
+        container.style.minWidth = "112px";
 
         btn_close.value = '📈' + (mwi.isZh ? "显示" : "Show");
         leftContainer.style.position = 'relative'
@@ -2701,7 +2694,7 @@
         favoContainer.style.top = 0;
         favoContainer.style.left = 0;
         favoContainer.style.right = null;
-        favoContainer.style.position = 'relative'
+        favoContainer.style.position = 'relative';
         config.visible = false;
 
         updateFavo();
@@ -2787,11 +2780,11 @@
 
     function requestItemPrice(itemHridName, day = 1, level = 0) {
       if (!itemHridName) return;
-      if (curHridName === itemHridName && curLevel === level && cur_day === day) return;//防止重复请求
+      if (curHridName === itemHridName && curLevel == level && curDay == day) return;//防止重复请求
 
-      curHridName = itemHridName;
-      curLevel = level;
-      cur_day = day;
+      delayItemHridName = curHridName = itemHridName;
+      delayItemLevel = curLevel = level;
+      curDay = day;
 
       curShowItemName = mwi.isZh ? mwi.lang.zh.translation.itemNames[itemHridName] : mwi.lang.en.translation.itemNames[itemHridName];
       curShowItemName += curLevel > 0 ? `(+${curLevel})` : "";
@@ -2804,7 +2797,7 @@
         params.append("level", curLevel);
         params.append("time", time);
         fetch(`${HOST}/market/item/history?${params}`).then(res => {
-          res.json().then(data => updateChart(data, cur_day));
+          res.json().then(data => updateChart(data, curDay));
         })
       }//新api
       else {//旧api
@@ -2819,7 +2812,7 @@
             time: time
           })
         }).then(res => {
-          res.json().then(data => updateChart(data, cur_day));
+          res.json().then(data => updateChart(data, curDay));
         })
       }
     }
@@ -2888,25 +2881,6 @@
       //timestamp转日期时间
       //根据day输出不同的时间表示，<3天显示时分，<=7天显示日时，<=30天显示月日，>30天显示年月
 
-      //显示历史价格
-      let enhancementLevel = document.querySelector(".MarketplacePanel_infoContainer__2mCnh .Item_enhancementLevel__19g-e")?.textContent.replace("+", "") || "0";
-      let tradeName = curHridName + ":" + parseInt(enhancementLevel);
-      if (trade_history[tradeName]) {
-        let buy = trade_history[tradeName].buy || "--";
-        let sell = trade_history[tradeName].sell || "--";
-        price_info.style.display = "inline-block";
-        let levelStr = enhancementLevel > 0 ? `<span style="color:orange">(+${enhancementLevel})</span>` : "";
-        price_info.innerHTML = `
-        <span style="color:red">${showNumber(buy)}</span>
-        <span style="color:#AAAAAA">/</span>
-        <span style="color:lime">${showNumber(sell)}</span>${levelStr}`;
-        container.style.minWidth = price_info.clientWidth + 70 + "px";
-
-      } else {
-        price_info.style.display = "none";
-        container.style.minWidth = "68px";
-      }
-
       const labels = data.bid.map(x => new Date(x.time * 1000));
       chart.data.labels = labels;
 
@@ -2964,11 +2938,9 @@
     }
     function save_config() {
       if (mwi.character?.gameMode !== "standard") {
-        btn_favo.style.display = "none";
         btn_switch.style.display = "none";
         return;//铁牛不保存
       }
-      btn_favo.style.display = "inline-block";
       btn_switch.style.display = "inline-block";
 
       if (chart && chart.data && chart.data.datasets && chart.data.datasets.length == 3) {
@@ -2978,14 +2950,19 @@
       }
       config.x = Math.max(0, Math.min(container.getBoundingClientRect().x, window.innerWidth - 50));
       config.y = Math.max(0, Math.min(container.getBoundingClientRect().y, window.innerHeight - 50));
-      if (container.style.width != "auto") {
+
+      if (uiContainer.style.display === 'none') {
+        config.minWidth = container.clientWidth;
+        config.minHeight = container.clientHeight;
+      }
+      else {
         config.w = container.clientWidth;
         config.h = container.clientHeight;
       }
 
       localStorage.setItem("mooket_config", JSON.stringify(config));
     }
-    let requestItemHridLevel = null;
+    let lastItemHridLevel = null;
     setInterval(() => {
       let inMarketplace = document.querySelector(".MarketplacePanel_marketplacePanel__21b7o")?.checkVisibility();
       let hasFavo = Object.entries(config.favo || {}).length > 0;
@@ -2994,11 +2971,63 @@
         try {
           let currentItem = document.querySelector(".MarketplacePanel_currentItem__3ercC");
           let levelStr = currentItem?.querySelector(".Item_enhancementLevel__19g-e");
-          let level = parseInt(levelStr?.textContent.replace("+", "") || "0");
+          let enhancementLevel = parseInt(levelStr?.textContent.replace("+", "") || "0");
           let itemHrid = mwi.ensureItemHrid(currentItem?.querySelector(".Icon_icon__2LtL_")?.ariaLabel);
-          if (requestItemHridLevel !== itemHrid + ":" + level) {//避免重复请求  
-            requestItemHridLevel = itemHrid + ":" + level;
-            requestItemPrice(itemHrid, cur_day, level);
+          let itemHridLevel = itemHrid + ":" + enhancementLevel;
+          if (itemHrid) {
+            if (lastItemHridLevel !== itemHridLevel) {//防止重复请求
+              //显示历史价格
+
+              let tradeHistoryDiv = document.querySelector("#mooket_tradeHistory");
+              if (!tradeHistoryDiv) {
+                tradeHistoryDiv = document.createElement("div");
+                tradeHistoryDiv.id = "mooket_tradeHistory";
+                tradeHistoryDiv.style.position = "absolute";
+                tradeHistoryDiv.style.marginTop = "-24px";
+                tradeHistoryDiv.style.left = "50%";
+                tradeHistoryDiv.style.transform = "translateX(-50%)";
+                tradeHistoryDiv.title = mwi.isZh ? "我的最近买/卖价格" : "My recently buy/sell price";
+                currentItem.prepend(tradeHistoryDiv);
+              }
+              if (trade_history[itemHridLevel]) {
+                let buy = trade_history[itemHridLevel].buy || "--";
+                let sell = trade_history[itemHridLevel].sell || "--";
+
+                tradeHistoryDiv.innerHTML = `
+        <span style="color:red">${showNumber(buy)}</span>
+        <span style="color:#AAAAAA">/</span>
+        <span style="color:lime">${showNumber(sell)}</span>`;
+                tradeHistoryDiv.style.display = "block";
+              } else {
+                tradeHistoryDiv.style.display = "none";
+              }
+              //添加订阅button
+              if (mwi.character?.gameMode === "standard") {
+                let btn_favo = document.querySelector("#mooket_addFavo");
+                if (!btn_favo) {
+                  btn_favo = document.createElement('button');
+                  btn_favo.type = 'button';
+                  btn_favo.id = "mooket_addFavo";
+                  btn_favo.innerText = '📌';
+                  btn_favo.style.position = "absolute";
+                  btn_favo.style.padding = "0";
+                  btn_favo.style.fontSize = "18px";
+                  btn_favo.style.marginLeft = "32px";
+                  btn_favo.title = mwi.isZh ? "添加到自选" : "Add favorite";
+                  btn_favo.onclick = () => { if (itemHridLevel) addFavo(itemHridLevel) };
+                  currentItem.prepend(btn_favo);
+                }
+              }
+
+              //记录当前
+              lastItemHridLevel = itemHridLevel;
+              if (uiContainer.style.display === 'none') {//延迟到打开的时候请求
+                delayItemHridName = itemHrid;
+                delayItemLevel = enhancementLevel;
+              } else {
+                requestItemPrice(itemHrid, curDay, enhancementLevel);
+              }
+            }
           }
         } catch (e) {
           console.error(e)
