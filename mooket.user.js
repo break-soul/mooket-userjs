@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250514.5.0
+// @version      20250514.5.1
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -3014,11 +3014,11 @@
                   btn_favo.style.fontSize = "18px";
                   btn_favo.style.marginLeft = "32px";
                   btn_favo.title = mwi.isZh ? "添加到自选" : "Add favorite";
-                  btn_favo.onclick = () => { if (itemHridLevel) addFavo(itemHridLevel) };
+                  btn_favo.onclick = () => { if (btn_favo.itemHridLevel) addFavo(btn_favo.itemHridLevel) };
                   currentItem.prepend(btn_favo);
                 }
+                btn_favo.itemHridLevel = itemHridLevel;
               }
-
               //记录当前
               lastItemHridLevel = itemHridLevel;
               if (uiContainer.style.display === 'none') {//延迟到打开的时候请求
