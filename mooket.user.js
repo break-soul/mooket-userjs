@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250514.5.3
+// @version      20250514.5.4
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -2957,12 +2957,12 @@
       config.y = Math.max(0, Math.min(container.getBoundingClientRect().y, window.innerHeight - 50));
 
       if (uiContainer.style.display === 'none') {
-        config.minWidth = container.clientWidth;
-        config.minHeight = container.clientHeight;
+        config.minWidth = container.offsetWidth;
+        config.minHeight = container.offsetHeight;
       }
       else {
-        config.w = container.clientWidth;
-        config.h = container.clientHeight;
+        config.w = container.offsetWidth;
+        config.h = container.offsetHeight;
       }
 
       localStorage.setItem("mooket_config", JSON.stringify(config));
