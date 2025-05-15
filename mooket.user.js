@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250514.5.2
+// @version      20250514.5.3
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -2280,7 +2280,7 @@
     container.style.display = "none";
     container.style.flexDirection = "column";
     container.style.flex = "1";
-    container.style.minHeight = "min-content";
+    container.style.minHeight = "35px";
     container.style.minWidth = "112px";
     container.style.maxWidth = window.clientWidth;
     container.style.userSelect = "none";
@@ -2469,6 +2469,7 @@
       config[target] = modeCycle[config[target]] || "icon";
       updateFavo();
       container.style.width="min-content";
+      container.style.height="min-content";
       save_config();
     };
     leftContainer.appendChild(btn_switch);
@@ -2689,6 +2690,7 @@
         container.style.minHeight = "min-content";
         container.style.minWidth = "112px";
         container.style.width = "min-content";
+        container.style.height = "min-content";
 
         btn_close.value = '📈' + (mwi.isZh ? "显示" : "Show");
         leftContainer.style.position = 'relative'
