@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250514.5.4
+// @version      20250514.5.5
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -127,8 +127,8 @@
           description: "注入语言翻译对象"
         },
         {
-          pattern: "class lp extends s.a.Component{constructor(e){var t;super(e),t=this,",
-          replacement: `class lp extends s.a.Component{constructor(e){var t;super(e),t=this,window.${injectSpace}.game=this,`,
+          pattern: "this.sendPing=",
+          replacement: `window.${injectSpace}.game=this,this.sendPing=`,
           description: "注入游戏对象"
 
         },
@@ -138,14 +138,9 @@
           description: "注入buff计算对象"
         },
         {
-          pattern: "class Dn",
-          replacement: `window.${injectSpace}.alchemyCalculator=Mn;class Dn`,
+          pattern: "class Rn",
+          replacement: `window.${injectSpace}.alchemyCalculator=Ln;class Rn`,
           description: "注入炼金计算对象"
-        },
-        {
-          pattern: "var z=q;",
-          replacement: `window.${injectSpace}.actionManager=q;var z=q;`,
-          description: "注入动作管理对象"
         }
       ];
 
