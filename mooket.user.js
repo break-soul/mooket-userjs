@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250514.5.5
+// @version      20250514.5.6
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -2561,7 +2561,7 @@
         }
         //鼠标如果在div范围内就显示fullinfo
         let favoMode = uiContainer.style.display === 'none' ? config.favoModeOff : config.favoModeOn;
-        let title = `${itemName}${level > 0 ? `(+${level})` : ""} ${priceDelta.ask} ${priceDelta.askRise > 0 ? "+" : ""}${priceDelta.askRise}% ${new Date(newPrice.time * 1000).toLocaleString()}`;
+        let title = `${itemName}${level > 0 ? `(+${level})` : ""} ${priceDelta.ask} ${priceDelta.askRise > 0 ? "+" : ""}${priceDelta.askRise}% ${new Date((newPrice?.time||0) * 1000).toLocaleString()}`;
         switch (favoMode) {
           case "full":
             favoItemDiv.innerHTML = `
