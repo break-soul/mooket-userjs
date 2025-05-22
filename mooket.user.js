@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250514.5.6
+// @version      20250514.5.7
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -2395,7 +2395,7 @@
         select.options[i].text = days[i] + (mwi.isZh ? "天" : "d");
       }
     }
-    
+
     uiContainer.appendChild(select);
 
     //添加一个radio用于设置自动隐藏显示
@@ -2463,8 +2463,8 @@
       const target = uiContainer.style.display === "none" ? "favoModeOff" : "favoModeOn";
       config[target] = modeCycle[config[target]] || "icon";
       updateFavo();
-      container.style.width="min-content";
-      container.style.height="min-content";
+      container.style.width = "min-content";
+      container.style.height = "min-content";
       save_config();
     };
     leftContainer.appendChild(btn_switch);
@@ -2561,7 +2561,7 @@
         }
         //鼠标如果在div范围内就显示fullinfo
         let favoMode = uiContainer.style.display === 'none' ? config.favoModeOff : config.favoModeOn;
-        let title = `${itemName}${level > 0 ? `(+${level})` : ""} ${priceDelta.ask} ${priceDelta.askRise > 0 ? "+" : ""}${priceDelta.askRise}% ${new Date((newPrice?.time||0) * 1000).toLocaleString()}`;
+        let title = `${itemName}${level > 0 ? `(+${level})` : ""} ${priceDelta.ask} ${priceDelta.askRise > 0 ? "+" : ""}${priceDelta.askRise}% ${new Date((newPrice?.time || 0) * 1000).toLocaleString()}`;
         switch (favoMode) {
           case "full":
             favoItemDiv.innerHTML = `
@@ -2640,18 +2640,18 @@
 
     sendFavo();//初始化自选
     addEventListener('MWICoreItemPriceUpdated', updateFavo);
-    addEventListener("MWILangChanged",()=>{
+    addEventListener("MWILangChanged", () => {
       updateMoodays();
       updateFavo();
       btn_switch.title = mwi.isZh ? "显示模式" : "Detail Level";
       btn_auto.title = mwi.isZh ? "在市场外隐藏" : "Hide out of marketplace";
       label_auto.textContent = mwi.isZh ? "自动隐藏" : "AutoHide";
-      if(uiContainer.style.display === 'none'){
+      if (uiContainer.style.display === 'none') {
         btn_close.value = mwi.isZh ? "📈显示" : "Show";
-      }else{
+      } else {
         btn_close.value = mwi.isZh ? "📈隐藏" : "Hide";
       }
-      
+
     });
     btn_close.onclick = toggle;
     function toggle() {
@@ -2948,16 +2948,18 @@
         config.filter.bid = chart.getDatasetMeta(1).visible;
         config.filter.mean = chart.getDatasetMeta(2).visible;
       }
-      config.x = Math.max(0, Math.min(container.getBoundingClientRect().x, window.innerWidth - 50));
-      config.y = Math.max(0, Math.min(container.getBoundingClientRect().y, window.innerHeight - 50));
+      if (container.checkVisibility()) {
+        config.x = Math.max(0, Math.min(container.getBoundingClientRect().x, window.innerWidth - 50));
+        config.y = Math.max(0, Math.min(container.getBoundingClientRect().y, window.innerHeight - 50));
 
-      if (uiContainer.style.display === 'none') {
-        config.minWidth = container.offsetWidth;
-        config.minHeight = container.offsetHeight;
-      }
-      else {
-        config.w = container.offsetWidth;
-        config.h = container.offsetHeight;
+        if (uiContainer.style.display === 'none') {
+          config.minWidth = container.offsetWidth;
+          config.minHeight = container.offsetHeight;
+        }
+        else {
+          config.w = container.offsetWidth;
+          config.h = container.offsetHeight;
+        }
       }
 
       localStorage.setItem("mooket_config", JSON.stringify(config));
