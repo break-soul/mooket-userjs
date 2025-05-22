@@ -2503,6 +2503,7 @@
     function removeFavo(itemHridLevel) {
       if (mwi.character?.gameMode !== "standard") return;
       delete config.favo[itemHridLevel];
+      save_config();
       sendFavo();
     }
     function updateFavo() {
