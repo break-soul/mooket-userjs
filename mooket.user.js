@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250514.5.7
+// @version      20250514.5.8
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -2497,6 +2497,7 @@
       if (mwi.character?.gameMode !== "standard") return;
       let priceObj = mwi.coreMarket.getItemPrice(itemHridLevel);
       config.favo[itemHridLevel] = { ask: priceObj.ask, bid: priceObj.bid, time: priceObj.time };
+      save_config();
       sendFavo();
     }
     function removeFavo(itemHridLevel) {
