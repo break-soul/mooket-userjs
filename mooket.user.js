@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250514.5.8
+// @version      20250514.5.9
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -2457,7 +2457,8 @@
         normalPercent: "normalPrice",
         normalPrice: "normalFull",
         normalFull: "full",
-        full: "icon"
+        full: "none",
+        none: "icon",
       };
 
       const target = uiContainer.style.display === "none" ? "favoModeOff" : "favoModeOn";
@@ -2565,6 +2566,9 @@
         let favoMode = uiContainer.style.display === 'none' ? config.favoModeOff : config.favoModeOn;
         let title = `${itemName}${level > 0 ? `(+${level})` : ""} ${priceDelta.ask} ${priceDelta.askRise > 0 ? "+" : ""}${priceDelta.askRise}% ${new Date((newPrice?.time || 0) * 1000).toLocaleString()}`;
         switch (favoMode) {
+          case "none":
+            favoItemDiv.innerHTML="";
+            break;
           case "full":
             favoItemDiv.innerHTML = `
             <div title="${title}" style="display:inline-block;border:1px solid #98a7e9;">
