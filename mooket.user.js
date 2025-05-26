@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250514.5.9
+// @version      20250527.6.0
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -2567,7 +2567,7 @@
         let title = `${itemName}${level > 0 ? `(+${level})` : ""} ${priceDelta.ask} ${priceDelta.askRise > 0 ? "+" : ""}${priceDelta.askRise}% ${new Date((newPrice?.time || 0) * 1000).toLocaleString()}`;
         switch (favoMode) {
           case "none":
-            favoItemDiv.innerHTML="";
+            favoItemDiv.innerHTML = "";
             break;
           case "full":
             favoItemDiv.innerHTML = `
@@ -2796,31 +2796,15 @@
       curShowItemName += curLevel > 0 ? `(+${curLevel})` : "";
 
       let time = day * 3600 * 24;
-      //const HOST = "https://mooket.qi-e.top";上面定义了
-      if (curLevel > 0 || day < 2) {
-        const params = new URLSearchParams();
-        params.append("name", curHridName);
-        params.append("level", curLevel);
-        params.append("time", time);
-        fetch(`${HOST}/market/item/history?${params}`).then(res => {
-          res.json().then(data => updateChart(data, curDay));
-        })
-      }//新api
-      else {//旧api
-        let itemNameEN = mwi.lang.en.translation.itemNames[itemHridName];
-        fetch(`${HOST}/market`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name: itemNameEN,
-            time: time
-          })
-        }).then(res => {
-          res.json().then(data => updateChart(data, curDay));
-        })
-      }
+
+      const params = new URLSearchParams();
+      params.append("name", curHridName);
+      params.append("level", curLevel);
+      params.append("time", time);
+      fetch(`${HOST}/market/item/history?${params}`).then(res => {
+        res.json().then(data => updateChart(data, curDay));
+      }).catch(err => console.error("请求历史价格失败", err));
+
     }
 
     function formatTime(timestamp, range) {
