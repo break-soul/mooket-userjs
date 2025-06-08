@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         mooket
 // @namespace    http://tampermonkey.net/
-// @version      20250527.6.0
+// @version      20250608.1.0
 // @description  银河奶牛历史价格（包含强化物品）history(enhancement included) price for milkywayidle
 // @author       IOMisaka
 // @match        https://www.milkywayidle.com/*
@@ -36,7 +36,7 @@
   let mwi = {//供外部调用的接口
     //由于脚本加载问题，注入有可能失败
     //修改了hookCallback，添加了回调前和回调后处理
-    version: "0.5.0",//版本号，未改动原有接口只更新最后一个版本号，更改了接口会更改次版本号，主版本暂时不更新，等稳定之后再考虑主版本号更新
+    version: "0.6.0",//版本号，未改动原有接口只更新最后一个版本号，更改了接口会更改次版本号，主版本暂时不更新，等稳定之后再考虑主版本号更新
     MWICoreInitialized: false,//是否初始化完成，完成会还会通过window发送一个自定义事件 MWICoreInitialized
     game: null,//注入游戏对象，可以直接访问游戏中的大量数据和方法以及消息事件等
     lang: null,//语言翻译, 例如中文物品lang.zh.translation.itemNames['/items/coin']
@@ -55,7 +55,7 @@
 
     isZh: true,//是否中文
     /* marketJson兼容接口 */
-    get marketJson() {
+    get marketJsonOld() {
       return this.coreMarket && new Proxy(this.coreMarket, {
         get(coreMarket, prop) {
           if (prop === "market") {
@@ -69,6 +69,37 @@
         }
 
       });
+    },
+    get marketJson() {
+      return mwi.coreMarket && new Proxy({}, {
+        get(_, marketData) {
+          if (marketData === "marketData")
+            return new Proxy({}, {
+              get(_, itemHridOrName) {
+                return new Proxy({}, {
+                  get(_, itemLevel) {
+                    return new Proxy({}, {
+                      get(_, objProp) {
+                        switch (objProp) {
+                          case "a": {
+                            return mwi.coreMarket?.getItemPrice(itemHridOrName, itemLevel)?.ask;
+                          }
+                          case "b": {
+                            return mwi.coreMarket?.getItemPrice(itemHridOrName, itemLevel)?.bid;
+                          }
+                          case "time": {
+                            return mwi.coreMarket?.getItemPrice(itemHridOrName, itemLevel)?.time;
+                          }
+                        }
+                        return -1;
+                      }
+                    })
+                  }
+                })
+              }
+            })
+        }
+      })
     },
 
     itemNameToHridDict: null,//物品名称反查表
@@ -2470,6 +2501,16 @@
     };
     leftContainer.appendChild(btn_switch);
 
+
+    let btn_relayout = document.createElement('input');
+    btn_relayout.type = 'checkbox';
+    btn_relayout.title = mwi.isZh ? "固定精简面板大小" : "Keep minibox size";
+    btn_relayout.checked = config.keepsize;
+    btn_relayout.onchange = function () {
+      config.keepsize = this.checked;
+      save_config();
+    };
+    leftContainer.appendChild(btn_relayout);
     //自选
     let favoContainer = document.createElement('div');
     favoContainer.style.fontSize = '15px';
@@ -2690,8 +2731,11 @@
         container.style.height = config.minHeight + "px";
         container.style.minHeight = "min-content";
         container.style.minWidth = "112px";
-        container.style.width = "min-content";
-        container.style.height = "min-content";
+
+        if (!config.keepsize) {
+          container.style.width = "min-content";
+          container.style.height = "min-content";
+        }
 
         btn_close.value = '📈' + (mwi.isZh ? "显示" : "Show");
         leftContainer.style.position = 'relative'
