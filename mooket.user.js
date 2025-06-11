@@ -12,6 +12,8 @@
 // @require      https://cdn.jsdelivr.net/npm/chartjs-plugin-crosshair@2.0.0/dist/chartjs-plugin-crosshair.min.js
 // @run-at       document-start
 // @license MIT
+// @downloadURL https://update.greasyfork.org/scripts/530316/mooket.user.js
+// @updateURL https://update.greasyfork.org/scripts/530316/mooket.meta.js
 // ==/UserScript==
 
 (function () {
@@ -1991,10 +1993,11 @@
   }
   /*实时市场模块*/
   const HOST = "https://mooket.qi-e.top";
-  const MWIAPI_URL = "https://raw.githubusercontent.com/holychikenz/MWIApi/main/milkyapi.json";
+  const MWIAPI_URL = "https://www.milkywayidle.com/game_data/marketplace.json";
 
   class CoreMarket {
     marketData = {};//市场数据，带强化等级，存储格式{"/items/apple_yogurt:0":{ask,bid,time}}
+
     fetchTimeDict = {};//记录上次API请求时间，防止频繁请求
     ttl = 300;//缓存时间，单位秒
     trade_ws = null;
@@ -2004,6 +2007,7 @@
       let marketDataStr = localStorage.getItem("MWICore_marketData") || "{}";
       this.marketData = JSON.parse(marketDataStr);
 
+
       //mwiapi data
       let mwiapiJsonStr = localStorage.getItem("MWIAPI_JSON") || localStorage.getItem("MWITools_marketAPI_json");
       let mwiapiObj = null;
@@ -2011,7 +2015,7 @@
         mwiapiObj = JSON.parse(mwiapiJsonStr);
         this.mergeMWIData(mwiapiObj);
       }
-      if (!mwiapiObj || Date.now() / 1000 - mwiapiObj.time > 600) {//超过10分才更新
+      if (!mwiapiObj || Date.now() / 1000 - mwiapiObj.timestamp > 600) {//超过10分才更新
         fetch(MWIAPI_URL).then(res => {
           res.text().then(mwiapiJsonStr => {
             mwiapiObj = JSON.parse(mwiapiJsonStr);
@@ -2087,13 +2091,18 @@
      *
      * @param obj 包含市场数据的对象
      */
-    mergeMWIData(obj) {
-      Object.entries(obj.market).forEach(([itemName, price]) => {
-        let itemHrid = mwi.ensureItemHrid(itemName);
-        if (itemHrid) this.updateItem(itemHrid + ":" + 0, { bid: price.bid, ask: price.ask, time: obj.time }, false);//本地更新
-      });
-      this.save();
-    }
+      mergeMWIData(obj) {
+          Object.entries(obj.marketData).forEach(([key, value]) => {
+              const price = value[0]; // 获取新的价格对象
+
+              if (typeof price === "undefined"){
+                  this.updateItem(key + ":" + 0, { bid: 0, ask: 0, time: obj.timestamp }, true);
+              }else {
+                  this.marketData[key + ":" + 0] = { bid: price.b, ask: price.a, time: obj.timestamp }; // 本地更新
+              }
+          }); console.log(this.marketData);
+          this.save();
+      }
     mergeCoreDataBeforeSave() {
       let obj = JSON.parse(localStorage.getItem("MWICore_marketData") || "{}");
       Object.entries(obj).forEach(([itemHridLevel, priceObj]) => {
@@ -2185,6 +2194,7 @@
       if (Date.now() / 1000 - this.fetchTimeDict[itemHridLevel] < this.ttl) return priceObj;//1分钟内直接返回本地数据，防止频繁请求服务器
       this.fetchTimeDict[itemHridLevel] = Date.now() / 1000;
       this.trade_ws?.send(JSON.stringify({ type: "GetItemPrice", name: itemHrid, level: enhancementLevel }));
+        console.log(priceObj);
       return priceObj;
     }
     processItemPrice(resObj) {
